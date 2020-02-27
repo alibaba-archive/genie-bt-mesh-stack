@@ -4,12 +4,12 @@ Genie BT mesh stack is a set of Bluetooth mesh SDK for tmall Genie ecology.
 
 ## Architecture Overview
 
-AliOS Things supports multiple chip manufacturer, including telink，MTK，Nordic.
+Genie BT mesh stack supports multiple chip manufacturer, including telink，MTK，Nordic.
 
 
 # Documentation
 
-Genie BT mesh Stack's documentation are mainly hosted at [AliGenie](https://doc-bot.tmall.com/docs/doc.htm?spm=0.7629140.0.0.37011780Eef1Di&treeId=578&articleId=109585&docType=1).
+Genie BT mesh Stack's documentation are mainly hosted at [AliGenie](https://www.aligenie.com/).
 
 # License
 
