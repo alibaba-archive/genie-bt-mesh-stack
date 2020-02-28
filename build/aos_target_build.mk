@@ -359,6 +359,8 @@ $(BIN_OUTPUT_FILE): $(STRIPPED_LINK_OUTPUT_FILE)
 ifeq ($(TOOLCHAIN_DEFAULT_FOLDER), tc32)
 	$(QUIET)$(ECHO) Making $(notdir $(LST_OUTPUT_FILE)) 
 	$(OBJDUMP) $(OBJDUMP_LST_FLAGS) ${LINK_OUTPUT_FILE} > $(OBJCOPY_OUTPUT_PREFIX)$(LST_OUTPUT_FILE) 
+	$(QUIET)$(ECHO) Adding Check $(notdir $(BIN_OUTPUT_FILE)) 
+	$(CHECK_FW_TOOL) $(BIN_OUTPUT_FILE)
 endif
 ifeq ($(IDE),iar)
 	echo copy iar opt files..
