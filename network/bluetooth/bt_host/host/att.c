@@ -1885,7 +1885,7 @@ struct net_buf *bt_att_create_pdu(struct bt_conn *conn, u8_t op, size_t len)
 static void att_reset(struct bt_att *att)
 {
     struct bt_att_req *req, *tmp;
-    int                i;
+    //int                i;
 #if CONFIG_BT_ATT_PREPARE_COUNT > 0
     struct net_buf *buf;
 

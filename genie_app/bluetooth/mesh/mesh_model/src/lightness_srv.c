@@ -15,7 +15,7 @@ struct bt_mesh_model_pub g_lightness_pub = {
 
 static void _lightness_prepare_buf(struct bt_mesh_model *p_model, struct net_buf_simple *p_msg, bool is_ack)
 {
-    S_MODEL_STATE *p_state = &((S_ELEM_STATE *)p_model->user_data)->state;
+    model_state_t *p_state = &((elem_state_t *)p_model->user_data)->state;
     u8_t remain_byte = 0;
 
     BT_DBG("actual cur(0x%04x) tar(0x%04x)", p_state->actual[T_CUR], p_state->actual[T_TAR]);
@@ -63,7 +63,7 @@ static E_MESH_ERROR_TYPE _lightness_analyze(struct bt_mesh_model *p_model,
     u8_t tid = 0;
     u8_t trans = 0;
     u8_t delay = 0;
-    S_ELEM_STATE *p_elem = NULL;
+    elem_state_t *p_elem = NULL;
 
     if (!p_model || !p_buf) return MESH_ANALYZE_ARGS_ERROR;
 
@@ -128,9 +128,6 @@ static E_MESH_ERROR_TYPE _lightness_analyze(struct bt_mesh_model *p_model,
 }
 
 #ifndef CONFIG_ALI_SIMPLE_MODLE
-/*
- * Ethan: not used for the moment
- * */
 void lightness_publication(struct bt_mesh_model *p_model)
 {
     struct net_buf_simple *p_msg = NULL;
@@ -140,7 +137,7 @@ void lightness_publication(struct bt_mesh_model *p_model)
 
     BT_DBG("addr(0x%04x)", p_model->pub->addr);
 
-    p_msg = p_model->pub->p_msg;
+    p_msg = p_model->pub->msg;
     if (p_model->pub->addr != BT_MESH_ADDR_UNASSIGNED) {
         _lightness_prepare_buf(p_model, p_msg, 0);
 
@@ -175,7 +172,7 @@ static void _lightness_set(struct bt_mesh_model *p_model,
     if(ret == MESH_SUCCESS || ret == MESH_TID_REPEAT) {
         _lightness_status(p_model, p_ctx, 1);
         if(ret == MESH_SUCCESS) {
-            genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (S_ELEM_STATE *)p_model->user_data);
+            genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
         }
     }
 }
@@ -189,38 +186,30 @@ static void _lightness_set_unack(struct bt_mesh_model *p_model,
     E_MESH_ERROR_TYPE ret = _lightness_analyze(p_model, p_ctx->addr, p_buf);
 
     if(ret == MESH_SUCCESS) {
-        genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (S_ELEM_STATE *)p_model->user_data);
+        genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
     }
 }
 
 #ifndef CONFIG_ALI_SIMPLE_MODLE
-/*
- * Ethan
- * 1. <done> rename to _lightness_linear_prepare_buf
- * 2. <done> add struct bt_mesh_model *p_model
- * 3. <done> replace g_mesh_state with p_elem->state
- * */
 static void _lightness_linear_prepare_buf(struct bt_mesh_model *p_model, struct net_buf_simple *p_msg, bool is_ack)
 {
-    u8_t remain_byte = get_remain_byte(is_ack);
-    S_ELEM_STATE *p_elem = NULL;
-    S_MESH_STATE *mesh_state = NULL;
+    model_state_t *p_state = &((elem_state_t *)p_model->user_data)->state;
+    u8_t remain_byte = 0;
 
     if (!p_model || !p_model->user_data || !p_msg) return;
 
-    p_elem = p_model->user_data;
-    mesh_state = &p_elem->state;
+    remain_byte = get_remain_byte(p_state, is_ack);
 
     BT_DBG("cur_linear(0x%04x) tar_linear(0x%04x) remain(0x%02x)",
-            mesh_state->linear[T_CUR], mesh_state->linear[T_TAR], remain_byte);
+            p_state->linear[T_CUR], p_state->linear[T_TAR], remain_byte);
 
     //prepare buff
     bt_mesh_model_msg_init(p_msg, BT_MESH_MODEL_OP_2(0x82, 0x52));
 
-    net_buf_simple_add_le16(p_msg, mesh_state->linear[T_CUR]);
+    net_buf_simple_add_le16(p_msg, p_state->linear[T_CUR]);
 
     if(remain_byte){
-        net_buf_simple_add_le16(p_msg, mesh_state->linear[T_TAR]);
+        net_buf_simple_add_le16(p_msg, p_state->linear[T_TAR]);
         net_buf_simple_add_u8(p_msg, remain_byte);
     }
 }
@@ -241,23 +230,14 @@ static void _lightness_linear_status(struct bt_mesh_model *p_model, struct bt_me
     BT_DBG("Success!!!");
 }
 
-/*
- * Ethan
- * 1. <done> add struct bt_mesh_model *p_model
- * 2. <done> replace g_mesh_state with p_elem->state
- * 3. <done> replace mesh_check_TID with mesh_check_tid
- * 4. <done> bind operation in genie_event
- * 5. <done> send event to genie_event
- * */
 static E_MESH_ERROR_TYPE _lightness_linear_analyze(struct bt_mesh_model *p_model, u16_t src_addr, struct net_buf_simple *buf)
 {
     u16_t linear = 0;
     u8_t tid = 0;
     u8_t l_trans = 0;
     u8_t l_delay = 0;
-    S_ELEM_STATE *p_elem = NULL;
-    S_MESH_STATE *mesh_state = NULL;
-    E_MESH_ERROR_TYPE ret = MESH_SUCCESS;
+    elem_state_t *p_elem = NULL;
+    model_state_t *mesh_state = NULL;
 
     if(!p_model || !p_model->user_data || !buf) return MESH_ANALYZE_ARGS_ERROR;
 
@@ -316,15 +296,6 @@ static E_MESH_ERROR_TYPE _lightness_linear_analyze(struct bt_mesh_model *p_model
     return MESH_SUCCESS;
 }
 
-/*
- * Ethan
- * 1. remove the following APIs and  send message to genie_event in _lightness_linear_set and _lightness_linear_set_unack
- * lightness_linear_done
- * lightness_linear_transition
- * lightness_linear_delay
- * lightness_linear_action
- *
- * */
 #if 0
 static void lightness_linear_done(void)
 {
@@ -383,68 +354,50 @@ static bool lightness_linear_action(struct bt_mesh_model *p_model)
 #endif
 
 static void _lightness_linear_get(struct bt_mesh_model *p_model,
-                                 struct bt_mesh_msg_ctx *ctx,
-                                 struct net_buf_simple *buf)
+                                 struct bt_mesh_msg_ctx *p_ctx,
+                                 struct net_buf_simple *p_buf)
 {
     BT_DBG("");
 
-    _lightness_linear_status(p_model, ctx, 0);
+    _lightness_linear_status(p_model, p_ctx, 0);
 }
 
-/*
- * Ethan
- * 1. <done> remove pub_need and lightness_linear_action, mesh_publication related operations
- * */
 static void _lightness_linear_set(struct bt_mesh_model *p_model,
-                                 struct bt_mesh_msg_ctx *ctx,
-                                 struct net_buf_simple *buf)
+                                 struct bt_mesh_msg_ctx *p_ctx,
+                                 struct net_buf_simple *p_buf)
 {
-    u8_t pub_need = 0;
+    E_MESH_ERROR_TYPE ret = _lightness_linear_analyze(p_model, p_ctx->addr, p_buf);
 
-    BT_DBG("");
+    BT_DBG("ret %d", ret);
 
-    if(_lightness_linear_analyze(p_model, ctx->addr, buf) == MESH_SUCCESS) {
-#if 0 // Ethan
-        pub_need = lightness_linear_action(p_model);
-        _lightness_linear_status(p_model, ctx, 1);
-        if(pub_need && p_model->pub->addr != ctx->addr) {
-            mesh_publication(p_model->p_elem, MESH_PUB_LIGHTNESS);
+    if(ret == MESH_SUCCESS || ret == MESH_TID_REPEAT) {
+        _lightness_linear_status(p_model, p_ctx, 1);
+        if(ret == MESH_SUCCESS) {
+            //genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
         }
-#else
-        _lightness_linear_status(p_model, ctx, 1);
-#endif
     }
 }
 
-/*
- * Ethan
- * 1. <done> remove pub_need and lightness_linear_action, mesh_publication related operations
- * */
 static void _lightness_linear_set_unack(struct bt_mesh_model *p_model,
-                                       struct bt_mesh_msg_ctx *ctx,
-                                       struct net_buf_simple *buf)
+                                       struct bt_mesh_msg_ctx *p_ctx,
+                                       struct net_buf_simple *p_buf)
 {
-    u8_t pub_need = 0;
-
     BT_DBG("");
 
-    if(_lightness_linear_analyze(p_model, ctx->addr, buf) == MESH_SUCCESS) {
-#if 0 // Ethan
-        pub_need = lightness_linear_action(p_model);
-        if(pub_need && p_model->pub->addr != ctx->addr) {
-            mesh_publication(p_model->elem, MESH_PUB_LIGHTNESS);
-        }
-#endif
+    E_MESH_ERROR_TYPE ret = _lightness_linear_analyze(p_model, p_ctx->addr, p_buf);
+
+    if(ret == MESH_SUCCESS) {
+        //genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
     }
 }
 
-static void _lightness_last_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *ctx)
+static void _lightness_last_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *p_ctx)
 {
     struct net_buf_simple *p_msg = NET_BUF_SIMPLE(2 + 2 + 4);
-    S_ELEM_STATE *p_elem = NULL;
-    S_MESH_POWERUP *mesh_powerup = NULL;
+    elem_state_t *p_elem = NULL;
+    model_powerup_t *mesh_powerup = NULL;
 
-    if (!p_model || !p_model->elem || !p_model->user_data || !ctx) return;
+    if (!p_model || !p_model->elem || !p_model->user_data || !p_ctx) return;
 
     p_elem = p_model->user_data;
     mesh_powerup = &p_elem->powerup;
@@ -454,28 +407,28 @@ static void _lightness_last_status(struct bt_mesh_model *p_model, struct bt_mesh
     bt_mesh_model_msg_init(p_msg, BT_MESH_MODEL_OP_2(0x82, 0x54));
     net_buf_simple_add_le16(p_msg, mesh_powerup->last_actual);
 
-    if (bt_mesh_model_send(p_model, ctx, p_msg, NULL, NULL)) {
+    if (bt_mesh_model_send(p_model, p_ctx, p_msg, NULL, NULL)) {
         BT_ERR("Unable to send last Status");
     }
     BT_DBG("Success!!!");
 }
 
 static void _lightness_last_get(struct bt_mesh_model *p_model,
-                               struct bt_mesh_msg_ctx *ctx,
-                               struct net_buf_simple *buf)
+                               struct bt_mesh_msg_ctx *p_ctx,
+                               struct net_buf_simple *p_buf)
 {
     BT_DBG("");
 
-    _lightness_last_status(p_model, ctx);
+    _lightness_last_status(p_model, p_ctx);
 }
 
-static void _lightness_defatult_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *ctx)
+static void _lightness_defatult_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *p_ctx)
 {
     struct net_buf_simple *p_msg = NET_BUF_SIMPLE(2 + 2 + 4);
-    S_ELEM_STATE *p_elem = NULL;
-    S_MESH_POWERUP *mesh_powerup = NULL;
+    elem_state_t *p_elem = NULL;
+    model_powerup_t *mesh_powerup = NULL;
 
-    if (!p_model || !p_model->user_data || !p_model->elem || !ctx) return;
+    if (!p_model || !p_model->user_data || !p_model->elem || !p_ctx) return;
 
     p_elem = p_model->user_data;
     mesh_powerup = &p_elem->powerup;
@@ -485,28 +438,28 @@ static void _lightness_defatult_status(struct bt_mesh_model *p_model, struct bt_
     bt_mesh_model_msg_init(p_msg, BT_MESH_MODEL_OP_2(0x82, 0x56));
     net_buf_simple_add_le16(p_msg, mesh_powerup->default_actual);
 
-    if (bt_mesh_model_send(p_model, ctx, p_msg, NULL, NULL)) {
+    if (bt_mesh_model_send(p_model, p_ctx, p_msg, NULL, NULL)) {
         BT_ERR("Unable to send default Status");
     }
     BT_DBG("Success!!!");
 }
 
 static void _lightness_default_get(struct bt_mesh_model *p_model,
-                                  struct bt_mesh_msg_ctx *ctx,
-                                  struct net_buf_simple *buf)
+                                  struct bt_mesh_msg_ctx *p_ctx,
+                                  struct net_buf_simple *p_buf)
 {
     BT_DBG("");
 
-    _lightness_defatult_status(p_model, ctx);
+    _lightness_defatult_status(p_model, p_ctx);
 }
 
-static void _lightness_range_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *ctx)
+static void _lightness_range_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *p_ctx)
 {
     struct net_buf_simple *p_msg = NET_BUF_SIMPLE(2 + 5 + 4);
-    S_ELEM_STATE *p_elem = NULL;
-    S_MESH_POWERUP *mesh_powerup = NULL;
+    elem_state_t *p_elem = NULL;
+    model_powerup_t *mesh_powerup = NULL;
 
-    if (!p_model || !p_model->user_data || !p_model->elem || !ctx) return;
+    if (!p_model || !p_model->user_data || !p_model->elem || !p_ctx) return;
 
     p_elem = p_model->user_data;
     mesh_powerup = &p_elem->powerup;
@@ -518,32 +471,26 @@ static void _lightness_range_status(struct bt_mesh_model *p_model, struct bt_mes
     net_buf_simple_add_le16(p_msg, mesh_powerup->min_actual);
     net_buf_simple_add_le16(p_msg, mesh_powerup->max_actual);
 
-    if (bt_mesh_model_send(p_model, ctx, p_msg, NULL, NULL)) {
+    if (bt_mesh_model_send(p_model, p_ctx, p_msg, NULL, NULL)) {
         BT_ERR("Unable to send range Status");
     }
     BT_DBG("Success!!!");
 }
 
 static void _lightness_range_get(struct bt_mesh_model *p_model,
-                                struct bt_mesh_msg_ctx *ctx,
-                                struct net_buf_simple *buf)
+                                struct bt_mesh_msg_ctx *p_ctx,
+                                struct net_buf_simple *p_buf)
 {
     BT_DBG("");
 
-    _lightness_range_status(p_model, ctx);
+    _lightness_range_status(p_model, p_ctx);
 }
 
-/*
- * Ethan
- * 1. <done> add struct bt_mesh_model *p_model
- * 2. <done> think about how to store lightness default/range related parameters instead of g_mesh_powerup
- *
- * */
 //light lightness setup server
 static E_MESH_ERROR_TYPE _lightness_default_analyze(struct bt_mesh_model *p_model, u16_t src_addr, struct net_buf_simple *buf)
 {
-    S_ELEM_STATE *p_elem = NULL;
-    S_MESH_POWERUP *mesh_powerup = NULL;
+    elem_state_t *p_elem = NULL;
+    model_powerup_t *mesh_powerup = NULL;
 
     if (!p_model || !p_model->user_data || !buf) return MESH_ANALYZE_ARGS_ERROR;
 
@@ -587,8 +534,8 @@ static E_MESH_ERROR_TYPE _lightness_range_analyze(struct bt_mesh_model *p_model,
 {
     u16_t min = 0;
     u16_t max = 0;
-    S_ELEM_STATE *p_elem = NULL;
-    S_MESH_POWERUP *mesh_powerup = NULL;
+    elem_state_t *p_elem = NULL;
+    model_powerup_t *mesh_powerup = NULL;
 
     if (!p_model || !buf) return MESH_ANALYZE_ARGS_ERROR;
 
@@ -620,11 +567,6 @@ static E_MESH_ERROR_TYPE _lightness_range_analyze(struct bt_mesh_model *p_model,
     return MESH_SUCCESS;
 }
 
-/*
- * Ethan
- * will range set operation happens dynamically?
- * shall we need to check whether current lightness is in range and adjust if necessary?
- * */
 static void _lightness_range_set(struct bt_mesh_model *p_model,
                                       struct bt_mesh_msg_ctx *ctx,
                                       struct net_buf_simple *buf)
@@ -673,9 +615,9 @@ const struct bt_mesh_model_op g_lightness_op[LIGHTNESS_OPC_NUM] = {
     BT_MESH_MODEL_OP_END,
 };
 
-void bind_lightness_with_onoff(S_ELEM_STATE *p_elem, E_VALUE_TYPE type)
+void bind_lightness_with_onoff(elem_state_t *p_elem, E_VALUE_TYPE type)
 {
-    S_MODEL_STATE *p_state = &p_elem->state;
+    model_state_t *p_state = &p_elem->state;
 
     BT_DBG("onoff cur(%d) tar(%d)", p_state->onoff[T_CUR], p_state->onoff[T_TAR]);
     if(type == T_TAR) {
@@ -704,34 +646,4 @@ void bind_lightness_with_onoff(S_ELEM_STATE *p_elem, E_VALUE_TYPE type)
     }
     BT_DBG("actual cur(%04x) tar(%04x)", p_state->actual[T_CUR], p_state->actual[T_TAR]);
 }
-
-void bind_ctl_with_onoff(S_ELEM_STATE *p_elem, E_VALUE_TYPE type)
-{
-    S_MODEL_STATE *p_state = &p_elem->state;
-
-    BT_DBG("onoff cur(%d) tar(%d)", p_state->onoff[T_CUR], p_state->onoff[T_TAR]);
-    if(type == T_TAR) {
-#ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
-        if(p_state->onoff[T_CUR] == 0 && p_state->onoff[T_TAR] == 1) {
-#ifdef CONFIG_ALI_SIMPLE_MODLE
-            //turn on, check temperature
-            BT_DBG("temp cur(%d) tar(%d)", p_state->temp[T_CUR], p_state->temp[T_TAR]);
-            if(p_state->temp[T_CUR] != p_state->temp[T_TAR]) {
-                if(p_elem->powerup.last_temp) {
-                    p_state->temp[T_TAR] = p_elem->powerup.last_temp;
-                } else {
-                    p_state->temp[T_TAR] = CTL_TEMP_DEFAULT;
-                }
-#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
-                g_indication_flag |= INDICATION_FLAG_CTL;
-#endif
-            }
-#endif
-        }
-#endif
-    } else if(type == T_CUR) {
-    }
-    BT_DBG("temp cur(%04x) tar(%04x)", p_state->temp[T_CUR], p_state->temp[T_TAR]);
-}
-
 

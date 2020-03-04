@@ -180,7 +180,6 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_erase(void)
     BT_DBG("%s", __func__);
     ret = genie_flash_delete_seq();
     ret |= genie_flash_erase_userdata();
-    ret |= hal_flash_erase(GENIE_FLASH_PARTITION_USERDATA, 0, GENIE_FLASH_SIZE_USERDATA);
     ret |= genie_flash_erase_reliable();
 
     RETURN_WHEN_ERR(ret, GENIE_FLASH_EARSE_FAIL);

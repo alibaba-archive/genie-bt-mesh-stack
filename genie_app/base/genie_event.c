@@ -29,7 +29,7 @@
 #include "common/log.h"
 
 extern void user_event(E_GENIE_EVENT event, void *p_arg);
-extern S_ELEM_STATE g_elem_state[];
+extern elem_state_t g_elem_state[];
 
 
 static uint8_t g_in_prov = 0;
@@ -92,9 +92,11 @@ static E_GENIE_EVENT _genie_event_handle_sw_reset(void)
 
 static E_GENIE_EVENT _genie_event_handle_hw_reset_start(void)
 {
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
     if(bt_mesh_is_provisioned()) {
         genie_indicate_hw_reset_event(); // Indicate hardware reset event to cloud
     }
+#endif
     bt_mesh_adv_stop();
     genie_reset_done();
 
@@ -195,14 +197,28 @@ static E_GENIE_EVENT _genie_event_handle_prov_timeout(void)
 
 static E_GENIE_EVENT _genie_event_handle_prov_success(void)
 {
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
     return GENIE_EVT_SDK_STATE_SYNC;
+#else
+    return GENIE_EVT_SDK_MESH_PROV_SUCCESS;
+#endif
 }
 
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
 static E_GENIE_EVENT _genie_event_handle_sync(void)
 {
-    g_indication_flag |= INDICATION_FLAG_ONOFF | INDICATION_FLAG_LIGHTNESS | INDICATION_FLAG_CTL;
+#ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
+    g_indication_flag |= INDICATION_FLAG_ONOFF;
+#endif
+#ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
+    g_indication_flag |= INDICATION_FLAG_LIGHTNESS;
+#endif
+#ifdef CONFIG_MESH_MODEL_CTL_SRV
+    g_indication_flag |= INDICATION_FLAG_CTL;
+#endif
     return GENIE_EVT_SDK_INDICATE;
 }
+#endif
 
 static E_GENIE_EVENT _genie_event_handle_prov_fail(void)
 {
@@ -251,7 +267,7 @@ static E_GENIE_EVENT _genie_event_handle_seq_update(void)
     return GENIE_EVT_SDK_SEQ_UPDATE;
 }
 
-static E_GENIE_EVENT _genie_event_handle_analyze_msg(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_analyze_msg(elem_state_t *p_elem)
 {
 #ifdef CONFIG_MESH_MODEL_TRANS
     if(p_elem->state.trans || p_elem->state.delay) {
@@ -266,14 +282,14 @@ static E_GENIE_EVENT _genie_event_handle_analyze_msg(S_ELEM_STATE *p_elem)
 }
 
 #ifdef CONFIG_MESH_MODEL_TRANS
-static E_GENIE_EVENT _genie_event_handle_delay_start(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_delay_start(elem_state_t *p_elem)
 {
     mesh_timer_stop(p_elem);
     k_timer_start(&p_elem->state.delay_timer, p_elem->state.delay * 5);
     return GENIE_EVT_SDK_DELAY_START;
 }
 
-static E_GENIE_EVENT _genie_event_handle_delay_end(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_delay_end(elem_state_t *p_elem)
 {
     u32_t cur_time = k_uptime_get();
 
@@ -287,7 +303,7 @@ static E_GENIE_EVENT _genie_event_handle_delay_end(S_ELEM_STATE *p_elem)
     }
 }
 
-static E_GENIE_EVENT _genie_event_handle_trans_start(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_trans_start(elem_state_t *p_elem)
 {
     u32_t cur_time = k_uptime_get();
 
@@ -304,7 +320,7 @@ static E_GENIE_EVENT _genie_event_handle_trans_start(S_ELEM_STATE *p_elem)
     }
 }
 
-static E_GENIE_EVENT _genie_event_handle_trans_cycle(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_trans_cycle(elem_state_t *p_elem)
 {
     if(calc_cur_state(p_elem) == 0) {
         p_elem->state.trans = 0;
@@ -312,7 +328,7 @@ static E_GENIE_EVENT _genie_event_handle_trans_cycle(S_ELEM_STATE *p_elem)
     return GENIE_EVT_SDK_TRANS_CYCLE;
 }
 
-static E_GENIE_EVENT _genie_event_handle_trans_end(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_trans_end(elem_state_t *p_elem)
 {
     //clear paras
     clear_trans_para(p_elem);
@@ -321,7 +337,7 @@ static E_GENIE_EVENT _genie_event_handle_trans_end(S_ELEM_STATE *p_elem)
 }
 #endif
 
-static E_GENIE_EVENT _genie_event_handle_action_done(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_action_done(elem_state_t *p_elem)
 {
 #ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
     BT_DBG("onoff cur(%d) tar(%d)", p_elem->state.onoff[T_CUR], p_elem->state.onoff[T_TAR]);
@@ -339,7 +355,7 @@ static E_GENIE_EVENT _genie_event_handle_action_done(S_ELEM_STATE *p_elem)
     }
 #endif
 
-#ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
+#ifdef CONFIG_MESH_MODEL_CTL_SRV
     BT_DBG("temp cur(%04x) tar(%04x)", p_elem->state.temp[T_CUR], p_elem->state.temp[T_TAR]);
 
     if(p_elem->state.temp[T_CUR] != p_elem->state.temp[T_TAR]) {
@@ -356,13 +372,13 @@ static E_GENIE_EVENT _genie_event_handle_action_done(S_ELEM_STATE *p_elem)
 }
 
 #ifdef CONFIG_MESH_MODEL_VENDOR_SRV
-static E_GENIE_EVENT _genie_event_handle_pwron_indc(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_pwron_indc(elem_state_t *p_elem)
 {
     g_indication_flag |= INDICATION_FLAG_POWERON;
     return GENIE_EVT_SDK_INDICATE;
 }
 
-static E_GENIE_EVENT _genie_event_handle_indicate(S_ELEM_STATE *p_elem)
+static E_GENIE_EVENT _genie_event_handle_indicate(elem_state_t *p_elem)
 {
     if(g_indication_flag) {
         standart_indication(p_elem);
@@ -383,10 +399,11 @@ void genie_event(E_GENIE_EVENT event, void *p_arg)
     E_GENIE_EVENT next_event = event;
     uint8_t ignore_user_event = 0;
 
+#ifdef CONFIG_MESH_MODEL_TRANS
     if(event != GENIE_EVT_SDK_TRANS_CYCLE) {
         GENIE_MESH_EVENT_PRINT(event);
     }
-
+#endif
     switch(event) {
         case GENIE_EVT_SW_RESET:
             //call user_event first
@@ -440,10 +457,11 @@ void genie_event(E_GENIE_EVENT event, void *p_arg)
             next_event = _genie_event_handle_prov_success();
             break;
 
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
         case GENIE_EVT_SDK_STATE_SYNC:
             next_event = _genie_event_handle_sync();
             break;
-
+#endif
         case GENIE_EVT_SDK_MESH_PROV_FAIL:
             next_event = _genie_event_handle_prov_fail();
             break;
@@ -478,43 +496,43 @@ void genie_event(E_GENIE_EVENT event, void *p_arg)
             break;
 
         case GENIE_EVT_SDK_ANALYZE_MSG:
-            next_event = _genie_event_handle_analyze_msg((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_analyze_msg((elem_state_t *)p_arg);
             break;
 
 #ifdef CONFIG_MESH_MODEL_TRANS
         case GENIE_EVT_SDK_DELAY_START:
-            next_event = _genie_event_handle_delay_start((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_delay_start((elem_state_t *)p_arg);
             break;
 
         case GENIE_EVT_SDK_DELAY_END:
-            next_event = _genie_event_handle_delay_end((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_delay_end((elem_state_t *)p_arg);
             break;
 
         case GENIE_EVT_SDK_TRANS_START:
-            next_event = _genie_event_handle_trans_start((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_trans_start((elem_state_t *)p_arg);
             break;
 
         case GENIE_EVT_SDK_TRANS_CYCLE:
-            next_event = _genie_event_handle_trans_cycle((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_trans_cycle((elem_state_t *)p_arg);
             break;
 
         case GENIE_EVT_SDK_TRANS_END:
-            next_event = _genie_event_handle_trans_end((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_trans_end((elem_state_t *)p_arg);
             break;
 #endif
 
         case GENIE_EVT_SDK_ACTION_DONE:
-            next_event = _genie_event_handle_action_done((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_action_done((elem_state_t *)p_arg);
             break;
 
 #ifdef CONFIG_MESH_MODEL_VENDOR_SRV
         case GENIE_EVT_SDK_MESH_PWRON_INDC:
-            next_event = _genie_event_handle_pwron_indc((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_pwron_indc((elem_state_t *)p_arg);
             p_arg = &g_elem_state[0];
             break;
 
         case GENIE_EVT_SDK_INDICATE:
-            next_event = _genie_event_handle_indicate((S_ELEM_STATE *)p_arg);
+            next_event = _genie_event_handle_indicate((elem_state_t *)p_arg);
             break;
 
         case GENIE_EVT_SDK_VENDOR_MSG:

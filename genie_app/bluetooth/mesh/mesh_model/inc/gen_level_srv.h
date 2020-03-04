@@ -24,6 +24,6 @@ void gen_level_publication(struct bt_mesh_model *model);
  * @brief bind the levels between state and powerup
  * @param[in] elem: the element providing state and powerup
  */
-void bound_level_by_onoff(S_ELEM_STATE *elem);
+void bound_level_by_onoff(elem_state_t *elem);
 
 #endif // _GEN_LEVEL_SRV_H_

@@ -42,10 +42,12 @@ uint8_t g_indication_flag;
 
 static struct k_timer g_pbadv_timer;
 static struct k_timer g_prov_timer;
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
 static struct k_timer g_indc_timer;
+#endif
 
 #ifdef CONFIG_MESH_MODEL_TRANS
-void mesh_timer_stop(S_ELEM_STATE *p_elem)
+void mesh_timer_stop(elem_state_t *p_elem)
 {
     k_timer_stop(&p_elem->state.delay_timer);
     k_timer_stop(&p_elem->state.trans_timer);
@@ -53,13 +55,13 @@ void mesh_timer_stop(S_ELEM_STATE *p_elem)
 
 static void _mesh_delay_timer_cb(void *p_timer, void *p_arg)
 {
-    S_ELEM_STATE *p_elem = (S_ELEM_STATE *)p_arg;
+    elem_state_t *p_elem = (elem_state_t *)p_arg;
 
     mesh_timer_stop(p_elem);
     genie_event(GENIE_EVT_SDK_DELAY_END, p_arg);
 }
 
-void clear_trans_para(S_ELEM_STATE *p_elem)
+void clear_trans_para(elem_state_t *p_elem)
 {
     p_elem->state.trans = 0;
     p_elem->state.trans_start_time = 0;
@@ -68,8 +70,8 @@ void clear_trans_para(S_ELEM_STATE *p_elem)
 
 static void _mesh_trans_timer_cycle(void *p_timer, void *p_arg)
 {
-    S_ELEM_STATE *p_elem = (S_ELEM_STATE *)p_arg;
-    S_MODEL_STATE *p_state = &p_elem->state;
+    elem_state_t *p_elem = (elem_state_t *)p_arg;
+    model_state_t *p_state = &p_elem->state;
 
     mesh_timer_stop(p_elem);
 
@@ -85,15 +87,17 @@ static void _mesh_trans_timer_cycle(void *p_timer, void *p_arg)
     }
 }
 
-uint8_t calc_cur_state(S_ELEM_STATE * p_elem)
+uint8_t calc_cur_state(elem_state_t * p_elem)
 {
-    S_MODEL_STATE *p_state = &p_elem->state;
+    model_state_t *p_state = &p_elem->state;
     u32_t cur_time = k_uptime_get();
     uint8_t cycle = 0;
 
     //stop cycle when timeout
     if(cur_time <= p_state->trans_end_time - MESH_TRNSATION_CYCLE) {
+#if defined(CONFIG_MESH_MODEL_LIGHTNESS_SRV) || defined(CONFIG_MESH_MODEL_CTL_SRV)
         uint16_t step = (p_state->trans_end_time - cur_time)/MESH_TRNSATION_CYCLE;
+#endif
 
 #ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
         if(p_state->onoff[T_CUR] == 0 && p_state->onoff[T_TAR] == 1) {
@@ -241,7 +245,6 @@ void poweron_indicate_start(void)
     BT_DBG("indicate random(%d)ms", random_time);
     k_timer_start(&g_indc_timer, random_time);
 }
-#endif
 
 u16_t genie_indicate_hw_reset_event (void)
 {
@@ -264,6 +267,7 @@ u16_t genie_indicate_hw_reset_event (void)
 
     return 0;
 }
+#endif
 
 u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
     uint8_t *p_data = NULL;
@@ -302,7 +306,7 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
 }
 
 #if 0
-uint8_t vendor_indication_buff(S_ELEM_STATE *p_elem_state, uint8_t *p_buff, uint8_t len)
+uint8_t vendor_indication_buff(elem_state_t *p_elem_state, uint8_t *p_buff, uint8_t len)
 {
     vnd_model_msg reply_msg;
 
@@ -318,7 +322,7 @@ uint8_t vendor_indication_buff(S_ELEM_STATE *p_elem_state, uint8_t *p_buff, uint
 }
 #endif
 
-void mdoel_standart_event(S_ELEM_STATE *p_elem)
+void mdoel_standart_event(elem_state_t *p_elem)
 {
     E_GENIE_EVENT next_event = GENIE_EVT_SDK_ACTION_DONE;
 
@@ -354,7 +358,7 @@ uint8_t get_seg_count(uint16_t msg_len)
 /*
 indication onoff/lightness/temperature/power on
 */
-void standart_indication(S_ELEM_STATE *p_elem)
+void standart_indication(elem_state_t *p_elem)
 {
     uint8_t buff[14];
     uint16_t i = 0;
@@ -489,7 +493,7 @@ s16_t genie_vendor_model_msg_send(vnd_model_msg *p_vendor_msg) {
 }
 
 #if 0
-s16_t genie_light_action_notify(S_ELEM_STATE *p_elem) {
+s16_t genie_light_action_notify(elem_state_t *p_elem) {
 
     s16_t ret = -1;
 
@@ -498,8 +502,8 @@ s16_t genie_light_action_notify(S_ELEM_STATE *p_elem) {
         BT_WARN("invalid p_arg");
         ret = -1;
     } else {
-        S_MESH_POWERUP *p_powerup = &((S_ELEM_STATE *)p_elem)->powerup;
-        S_MESH_STATE *p_state = &((S_ELEM_STATE *)p_elem)->state;
+        model_powerup_t *p_powerup = &((elem_state_t *)p_elem)->powerup;
+        model_state_t *p_state = &((elem_state_t *)p_elem)->state;
 
         if (p_state->onoff[T_TAR]) {
             p_state->trans_start_time = k_uptime_get();
@@ -516,21 +520,25 @@ s16_t genie_light_action_notify(S_ELEM_STATE *p_elem) {
 }
 #endif
 
-uint8_t elem_state_init(uint8_t state_count, S_ELEM_STATE *p_elem)
+uint8_t elem_state_init(uint8_t state_count, elem_state_t *p_elem)
 {
     uint8_t i = 0;
 
     while(i < state_count) {
         p_elem[i].elem_index = i;
 #ifdef CONFIG_MESH_MODEL_TRANS
-        //memcpy(&elem[i].powerup, &f_power_up[i], sizeof(S_MESH_POWERUP));
+        //memcpy(&elem[i].powerup, &f_power_up[i], sizeof(model_powerup_t));
         k_timer_init(&p_elem[i].state.delay_timer, _mesh_delay_timer_cb, &p_elem[i]);
         k_timer_init(&p_elem[i].state.trans_timer, _mesh_trans_timer_cycle, &p_elem[i]);
 #endif
 #ifdef CONFIG_ALI_SIMPLE_MODLE
         p_elem[i].state.onoff[T_TAR] = GEN_ONOFF_DEFAULT;
+#ifdef MESH_MODEL_LIGHTNESS_SRV
         p_elem[i].state.actual[T_TAR] = LIGHTNESS_DEFAULT;
+#endif
+#ifdef MESH_MODEL_CTL_SRV
         p_elem[i].state.temp[T_TAR] = CTL_TEMP_DEFAULT;
+#endif
 #ifdef CONFIG_MESH_MODEL_TRANS
         p_elem[i].state.trans = 0x41;
         p_elem[i].state.delay = 100;
@@ -582,7 +590,7 @@ u32_t get_transition_time(uint8_t byte)
     return (byte & 0x3F) * TRANS_TIMES[byte>>6] * 100;
 }
 
-uint8_t get_remain_byte(S_MODEL_STATE *p_state, bool is_ack)
+uint8_t get_remain_byte(model_state_t *p_state, bool is_ack)
 {
     uint8_t remain_byte = p_state->trans;
     u32_t cur_time = k_uptime_get();

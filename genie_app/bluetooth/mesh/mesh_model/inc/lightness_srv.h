@@ -31,7 +31,6 @@ void lightness_publication(struct bt_mesh_model *p_model);
  * @param[in] p_elem
  * @param[in] type
  */
-void bind_lightness_with_onoff(S_ELEM_STATE *p_elem, E_VALUE_TYPE type);
-void bind_ctl_with_onoff(S_ELEM_STATE *p_elem, E_VALUE_TYPE type);
+void bind_lightness_with_onoff(elem_state_t *p_elem, E_VALUE_TYPE type);
 
 #endif // _ALI_MODEL_LIGHTNESS_SRV_H_

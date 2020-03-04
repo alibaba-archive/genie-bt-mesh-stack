@@ -77,7 +77,7 @@ static void _send_msg(char *pwbuf, int blen, int argc, char **argv)
     uint8_t msg_b[32];
     uint8_t ret;
     uint8_t i = 0;
-    struct bt_mesh_model *p_model;
+    struct bt_mesh_model *p_model = NULL;
     struct bt_mesh_msg_ctx ctx;
     struct net_buf_simple *msg;
 
@@ -106,8 +106,9 @@ static void _send_msg(char *pwbuf, int blen, int argc, char **argv)
         net_buf_simple_add_u8(msg, msg_b[i]);
         i++;
     }
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
     p_model = bt_mesh_model_find_vnd(elements, BT_MESH_MODEL_VND_COMPANY_ID, BT_MESH_MODEL_VND_MODEL_SRV);
-
+#endif
     if(p_model == NULL) {
         printk("no model\n");
         return;

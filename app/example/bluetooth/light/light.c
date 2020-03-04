@@ -177,8 +177,8 @@ static gpio_dev_t light_led;
 static pwm_dev_t light_led_c;
 static pwm_dev_t light_led_w;
 
-S_ELEM_STATE g_elem_state[MESH_ELEM_STATE_COUNT];
-S_MODEL_POWERUP g_powerup[MESH_ELEM_STATE_COUNT];
+elem_state_t g_elem_state[MESH_ELEM_STATE_COUNT];
+model_powerup_t g_powerup[MESH_ELEM_STATE_COUNT];
 
 
 static struct bt_mesh_model element_models[] = {
@@ -307,7 +307,7 @@ void led_flash(uint8_t times)
     //aos_msleep(times * 1000);
 }
 
-void save_light_state(S_ELEM_STATE *p_elem)
+void save_light_state(elem_state_t *p_elem)
 {
     if(p_elem->state.actual[T_CUR] != 0) {
         p_elem->powerup.last_actual = p_elem->state.actual[T_CUR];
@@ -329,7 +329,7 @@ void load_light_state(void)
 
     if(ret == GENIE_FLASH_SUCCESS) {
         while(i < MESH_ELEM_STATE_COUNT) {
-            memcpy(&g_elem_state[i].powerup, &g_powerup[i], sizeof(S_MODEL_POWERUP));
+            memcpy(&g_elem_state[i].powerup, &g_powerup[i], sizeof(model_powerup_t));
             BT_DBG_R("elem %d, actual %d temp %d", i, g_powerup[i].last_actual, g_powerup[i].last_temp);
 #ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
             if(g_powerup[i].last_actual) {
@@ -555,7 +555,7 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
 #endif
         case GENIE_EVT_SDK_ACTION_DONE:
         {
-            S_ELEM_STATE *p_elem = (S_ELEM_STATE *)p_arg;
+            elem_state_t *p_elem = (elem_state_t *)p_arg;
 #if defined(CONFIG_MESH_MODEL_CTL_SRV)
             _led_set(p_elem->elem_index, p_elem->state.onoff[T_CUR], p_elem->state.actual[T_CUR], p_elem->state.temp[T_CUR]);
 #elif defined(CONFIG_MESH_MODEL_LIGHTNESS_SRV)

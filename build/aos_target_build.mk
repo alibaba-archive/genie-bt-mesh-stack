@@ -355,10 +355,12 @@ PROJ_GEN_DIR   := projects/autogen/$(CLEANED_BUILD_STRING)
 # Bin file target - uses objcopy to convert the stripped elf into a binary file
 $(BIN_OUTPUT_FILE): $(STRIPPED_LINK_OUTPUT_FILE)
 	$(QUIET)$(ECHO) Making $(notdir $@)
-	$(QUIET)$(OBJCOPY) $(OBJCOPY_BIN_FLAGS) $< $(OBJCOPY_OUTPUT_PREFIX)$@ 
+	$(QUIET)$(OBJCOPY) $(OBJCOPY_BIN_FLAGS) $< $(OBJCOPY_OUTPUT_PREFIX)$@
 ifeq ($(TOOLCHAIN_DEFAULT_FOLDER), tc32)
-	$(QUIET)$(ECHO) Making $(notdir $(LST_OUTPUT_FILE)) 
-	$(OBJDUMP) $(OBJDUMP_LST_FLAGS) ${LINK_OUTPUT_FILE} > $(OBJCOPY_OUTPUT_PREFIX)$(LST_OUTPUT_FILE) 
+	$(QUIET)$(ECHO) Making $(notdir $(LST_OUTPUT_FILE))
+	$(OBJDUMP) $(OBJDUMP_LST_FLAGS) ${LINK_OUTPUT_FILE} > $(OBJCOPY_OUTPUT_PREFIX)$(LST_OUTPUT_FILE)
+	$(QUIET)$(ECHO) Adding Check $(notdir $(BIN_OUTPUT_FILE)) 
+	$(CHECK_FW_TOOL) $(BIN_OUTPUT_FILE)
 endif
 ifeq ($(IDE),iar)
 	echo copy iar opt files..
@@ -368,15 +370,15 @@ else ifeq ($(IDE),keil)
 	echo copy keil opt files..
 	$(QUIET)$(call MKDIR, $(PROJ_GEN_DIR)/keil_project/opts)
 	$(QUIET)cp -rf $(OUTPUT_DIR)/libraries/*_opts $(PROJ_GEN_DIR)/keil_project/opts
-endif	
-	
+endif
+
 ifeq ($(PING_PONG_OTA),1)
 $(STRIPPED_LINK_OUTPUT_FILE_XIP2): $(LINK_OUTPUT_FILE_XIP2)
 	$(QUIET)$(STRIP) $(STRIP_OUTPUT_PREFIX)$@ $(STRIPFLAGS) $<
 
 $(BIN_OUTPUT_FILE_XIP2): $(STRIPPED_LINK_OUTPUT_FILE_XIP2)
 	$(QUIET)$(ECHO) Making $(notdir $@)
-	$(QUIET)$(OBJCOPY) $(OBJCOPY_BIN_FLAGS) $< $(OBJCOPY_OUTPUT_PREFIX)$@ 
+	$(QUIET)$(OBJCOPY) $(OBJCOPY_BIN_FLAGS) $< $(OBJCOPY_OUTPUT_PREFIX)$@
 endif
 
 $(HEX_OUTPUT_FILE): $(STRIPPED_LINK_OUTPUT_FILE)

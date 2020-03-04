@@ -3,7 +3,7 @@ NAME := genie_app
 ble = 1
 
 $(NAME)_MBINS_TYPE := kernel
-$(NAME)_VERSION := 1.0.0
+$(NAME)_VERSION := 1.0.1
 $(NAME)_SUMMARY := Genie mesh application.
 
 GLOBAL_CFLAGS += -DSYSINFO_BUILD_TIME=\"$(CURRENT_TIME)\"
@@ -95,6 +95,10 @@ endif
 
 ifeq ($(ALI_SIMPLE_MODLE),1)
 GLOBAL_DEFINES += CONFIG_ALI_SIMPLE_MODLE
+else
+ifeq ($(MESH_MODEL_DIABLE_TRANS),1)
+$(error "MESH_MODEL_DIABLE_TRANS must set to 0")
+endif
 endif
 
 $(NAME)_SOURCES += bluetooth/mesh/mesh_model/src/model_bind_ops.c

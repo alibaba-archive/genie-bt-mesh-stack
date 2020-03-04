@@ -15,7 +15,7 @@ struct bt_mesh_model_pub g_gen_onoff_pub = {
 
 static void _gen_onoff_prepear_buf(struct bt_mesh_model *p_model, struct net_buf_simple *p_msg, bool is_ack)
 {
-    S_MODEL_STATE *p_state = &((S_ELEM_STATE *)p_model->user_data)->state;
+    model_state_t *p_state = &((elem_state_t *)p_model->user_data)->state;
     u8_t remain_byte = 0;
 
     BT_DBG("onoff cur(%d) tar(%d)", p_state->onoff[T_CUR], p_state->onoff[T_TAR]);
@@ -65,7 +65,7 @@ static E_MESH_ERROR_TYPE _gen_onoff_analyze(struct bt_mesh_model *p_model,
     u8_t tid = 0;
     u8_t trans = 0;
     u8_t delay = 0;
-    S_ELEM_STATE *p_elem = NULL;
+    elem_state_t *p_elem = NULL;
 
     if (!p_model || !p_buf) return MESH_ANALYZE_ARGS_ERROR;
 
@@ -184,7 +184,7 @@ static void _gen_onoff_set(struct bt_mesh_model *p_model,
     if(ret == MESH_SUCCESS || ret == MESH_TID_REPEAT) {
         _gen_onoff_status(p_model, p_ctx, 1);
         if(ret == MESH_SUCCESS) {
-            genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (S_ELEM_STATE *)p_model->user_data);
+            genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
         }
     }
 }
@@ -198,7 +198,7 @@ static void _gen_onoff_set_unack(struct bt_mesh_model *p_model,
     E_MESH_ERROR_TYPE ret = _gen_onoff_analyze(p_model, p_ctx->addr, p_buf);
 
     if(ret == MESH_SUCCESS) {
-        genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (S_ELEM_STATE *)p_model->user_data);
+        genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
     }
 }
 
@@ -210,9 +210,9 @@ const struct bt_mesh_model_op g_gen_onoff_op[] = {
 };
 
 #ifdef CONFIG_MESH_MODEL_CTL_SRV
-void bind_onoff_with_ctl(S_ELEM_STATE *p_elem, E_VALUE_TYPE type)
+void bind_onoff_with_ctl(elem_state_t *p_elem, E_VALUE_TYPE type)
 {
-    S_MODEL_STATE *p_state = &p_elem->state;
+    model_state_t *p_state = &p_elem->state;
 
     if(type == T_TAR) {
         if(p_state->onoff[T_TAR] == 0) {
@@ -229,9 +229,9 @@ void bind_onoff_with_ctl(S_ELEM_STATE *p_elem, E_VALUE_TYPE type)
 #endif
 
 #ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
-void bind_onoff_with_lightness(S_ELEM_STATE *p_elem, E_VALUE_TYPE type)
+void bind_onoff_with_lightness(elem_state_t *p_elem, E_VALUE_TYPE type)
 {
-    S_MODEL_STATE *p_state = &p_elem->state;
+    model_state_t *p_state = &p_elem->state;
 
     if(type == T_TAR) {
         if(p_state->actual[T_CUR] == 0 && p_state->actual[T_TAR] != 0) {

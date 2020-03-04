@@ -52,4 +52,7 @@ void ctl_publication(struct bt_mesh_model *model);
  */
 void ctl_temp_publication(struct bt_mesh_model *model);
 
+void bind_ctl_with_onoff(elem_state_t *p_elem, E_VALUE_TYPE type);
+
+
 #endif // _ALI_MODEL_LIGHT_CTL_SRV_H_

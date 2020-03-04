@@ -27,9 +27,9 @@ void gen_onoff_publication(struct bt_mesh_model *p_model);
  * @param[in] p_elem refer to the element to be bound.
  * @param[in] type T_CUR or T_TAR
  */
-void bind_onoff_with_lightness(S_ELEM_STATE *p_elem, E_VALUE_TYPE type);
+void bind_onoff_with_lightness(elem_state_t *p_elem, E_VALUE_TYPE type);
 #ifdef CONFIG_MESH_MODEL_CTL_SRV
-void bind_onoff_with_ctl(S_ELEM_STATE *p_elem, E_VALUE_TYPE type);
+void bind_onoff_with_ctl(elem_state_t *p_elem, E_VALUE_TYPE type);
 #endif
 
 #endif // _ALI_MODEL_GEN_ONOFF_SRV_H_

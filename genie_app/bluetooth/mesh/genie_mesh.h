@@ -71,7 +71,7 @@ typedef struct{
     struct k_timer delay_timer;
     struct k_timer trans_timer;
 #endif
-}  S_MODEL_STATE;
+}  model_state_t;
 
 typedef struct{
 #ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
@@ -91,7 +91,9 @@ typedef struct{
     u8_t last_onoff;
 #endif
 
-    //u8_t range_status;
+#ifndef CONFIG_ALI_SIMPLE_MODLE
+    u8_t range_status;
+#endif
 
 #ifdef CONFIG_MESH_MODEL_GEN_LEVEL_SRV
     s16_t default_level;
@@ -114,14 +116,14 @@ typedef struct{
     u16_t last_UV;
 #endif
 #endif
-}  S_MODEL_POWERUP;
+}  model_powerup_t;
 
 typedef struct{
     u8_t elem_index;
-    S_MODEL_STATE state;
-    S_MODEL_POWERUP powerup;
+    model_state_t state;
+    model_powerup_t powerup;
     void *user_data;
-} S_ELEM_STATE;
+} elem_state_t;
 
 #define GENIE_MAX_ELEMENT_COUNT 10
 
@@ -170,7 +172,7 @@ E_MESH_ERROR_TYPE mesh_check_tid(u16_t src_addr, u8_t tid);
  * @param[in] is_ack: ack or not
  * @return the bytes
  */
-uint8_t get_remain_byte(S_MODEL_STATE *p_state, bool is_ack);
+uint8_t get_remain_byte(model_state_t *p_state, bool is_ack);
 #ifdef CONFIG_MESH_MODEL_TRANS
 
 /**
@@ -193,13 +195,13 @@ s16_t genie_vendor_model_msg_send(vnd_model_msg *p_vendor_msg);
  * @param[in] p_elem
  * @return
  */
-s16_t genie_light_action_notify(S_ELEM_STATE *p_elem);
+s16_t genie_light_action_notify(elem_state_t *p_elem);
 
 /**
  * @brief stop the delay_timer and trans_timer for element.
  * @param[in] p_elem refers to the element.
  */
-void mesh_timer_stop(S_ELEM_STATE *p_elem);
+void mesh_timer_stop(elem_state_t *p_elem);
 
 /**
  * @brief handle the vendor message
@@ -237,14 +239,14 @@ void genie_prov_timer_stop(void);
  * @brief
  * @param[in] p_elem
  */
-void clear_trans_para(S_ELEM_STATE *p_elem);
+void clear_trans_para(elem_state_t *p_elem);
 
 /**
  * @brief
  * @param[in] p_elem
  * @return
  */
-uint8_t calc_cur_state(S_ELEM_STATE * p_elem);
+uint8_t calc_cur_state(elem_state_t * p_elem);
 
 /**
  * @brief
@@ -256,17 +258,28 @@ void genie_pbadv_start_silent_adv(void);
  * @return
  */
 u16_t genie_indicate_hw_reset_event (void);
-uint8_t elem_state_init(uint8_t state_count, S_ELEM_STATE *p_elem);
-void standart_indication(S_ELEM_STATE *p_elem);
+uint8_t elem_state_init(uint8_t state_count, elem_state_t *p_elem);
+void standart_indication(elem_state_t *p_elem);
 void genie_sub_list_init(void);
 
 #include "bluetooth/mesh/genie_mesh_flash.h"
 
+#ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
 #include "bluetooth/mesh/mesh_model/inc/gen_onoff_srv.h"
-#include "bluetooth/mesh/mesh_model/inc/lightness_srv.h"
-#include "bluetooth/mesh/mesh_model/inc/light_ctl_srv.h"
-#include "bluetooth/mesh/mesh_model/inc/vendor_model_srv.h"
 #include "bluetooth/mesh/mesh_model/inc/model_bind_ops.h"
+#endif
+#ifdef CONFIG_MESH_MODEL_GEN_LEVEL_SRV
+#include "bluetooth/mesh/mesh_model/inc/gen_level_srv.h"
+#endif
+#ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
+#include "bluetooth/mesh/mesh_model/inc/lightness_srv.h"
+#endif
+#ifdef CONFIG_MESH_MODEL_CTL_SRV
+#include "bluetooth/mesh/mesh_model/inc/light_ctl_srv.h"
+#endif
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
+#include "bluetooth/mesh/mesh_model/inc/vendor_model_srv.h"
+#endif
 
 #include "bluetooth/host/profile/ais_srv/ais_service.h"
 

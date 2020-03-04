@@ -17,7 +17,7 @@ struct bt_mesh_model_pub g_ctl_srv_pub = {
 #if CONFIG_MESH_MODEL_CTL_SRV   //light ctl server
 static void _ctl_prepare_buf(struct bt_mesh_model *p_model, struct net_buf_simple *p_msg, bool is_ack)
 {
-    S_MODEL_STATE *p_state = &((S_ELEM_STATE *)p_model->user_data)->state;
+    model_state_t *p_state = &((elem_state_t *)p_model->user_data)->state;
     u8_t remain_byte = 0;
 
     BT_DBG("temp cur(0x%04x) tar(0x%04x)", p_state->temp[T_CUR], p_state->temp[T_TAR]);
@@ -70,7 +70,7 @@ static u8_t _ctl_analyze(struct bt_mesh_model *p_model,
     u8_t tid = 0;
     u8_t trans = 0;
     u8_t delay = 0;
-    S_ELEM_STATE *p_elem = NULL;
+    elem_state_t *p_elem = NULL;
 
     if (!p_model || !p_buf) return MESH_ANALYZE_ARGS_ERROR;
 
@@ -192,7 +192,7 @@ static void _ctl_set(struct bt_mesh_model *p_model,
     if(ret == MESH_SUCCESS || ret == MESH_TID_REPEAT) {
         _ctl_status(p_model, p_ctx, 1);
         if(ret == MESH_SUCCESS) {
-            genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (S_ELEM_STATE *)p_model->user_data);
+            genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
         }
     }
 }
@@ -206,7 +206,7 @@ static void _ctl_set_unack(struct bt_mesh_model *p_model,
     E_MESH_ERROR_TYPE ret = _ctl_analyze(p_model, p_ctx->addr, p_buf);
 
     if(ret == MESH_SUCCESS) {
-        genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (S_ELEM_STATE *)p_model->user_data);
+        genie_event(GENIE_EVT_SDK_ANALYZE_MSG, (elem_state_t *)p_model->user_data);
     }
 }
 
@@ -214,7 +214,7 @@ static void _ctl_set_unack(struct bt_mesh_model *p_model,
 static void _ctl_temp_range_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *p_ctx)
 {
     struct net_buf_simple *p_msg = NET_BUF_SIMPLE(2 + 5 + 4);
-    S_ELEM_STATE *p_elem = p_model->user_data;
+    elem_state_t *p_elem = p_model->user_data;
 
 
     BT_DBG("range_status(0x%02x) min_temp(0x%04x) max_temp(0x%04x)",
@@ -244,7 +244,7 @@ static void _ctl_temp_range_get(struct bt_mesh_model *p_model,
 static void _ctl_defatult_status(struct bt_mesh_model *p_model, struct bt_mesh_msg_ctx *p_ctx)
 {
     struct net_buf_simple *p_msg = NET_BUF_SIMPLE(2 + 6 + 4);
-    S_ELEM_STATE *p_elem = p_model->user_data;
+    elem_state_t *p_elem = p_model->user_data;
 
 
     BT_DBG("actual(0x%04x) temp(0x%04x) uv(0x%04x)",
@@ -291,7 +291,7 @@ static E_MESH_ERROR_TYPE _ctl_default_analyze(struct bt_mesh_model *p_model, u16
     u16_t actual = 0;
     u16_t temp = 0;
     u16_t uv = 0;
-    S_ELEM_STATE *p_elem = p_model->user_data;
+    elem_state_t *p_elem = p_model->user_data;
 
     if(p_buf->len != 6) {
         BT_ERR("MESH_ANALYZE_SIZE_ERROR p_buf->len(%d)", p_buf->len);
@@ -356,7 +356,7 @@ static E_MESH_ERROR_TYPE _ctl_temp_range_analyze(struct bt_mesh_model *p_model, 
 {
     u16_t min = 0;
     u16_t max = 0;
-    S_ELEM_STATE *p_elem = p_model->user_data;
+    elem_state_t *p_elem = p_model->user_data;
 
     if(p_buf->len != 4) {
         BT_ERR("MESH_ANALYZE_SIZE_ERROR p_buf->len(%d)", p_buf->len);
@@ -678,3 +678,33 @@ const struct bt_mesh_model_op g_ctl_temp_srv_op[CTL_TEMP_OPC_NUM] = {
 };
 #endif
 #endif
+
+void bind_ctl_with_onoff(elem_state_t *p_elem, E_VALUE_TYPE type)
+{
+    model_state_t *p_state = &p_elem->state;
+
+    BT_DBG("onoff cur(%d) tar(%d)", p_state->onoff[T_CUR], p_state->onoff[T_TAR]);
+    if(type == T_TAR) {
+#ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
+        if(p_state->onoff[T_CUR] == 0 && p_state->onoff[T_TAR] == 1) {
+#ifdef CONFIG_ALI_SIMPLE_MODLE
+            //turn on, check temperature
+            BT_DBG("temp cur(%d) tar(%d)", p_state->temp[T_CUR], p_state->temp[T_TAR]);
+            if(p_state->temp[T_CUR] != p_state->temp[T_TAR]) {
+                if(p_elem->powerup.last_temp) {
+                    p_state->temp[T_TAR] = p_elem->powerup.last_temp;
+                } else {
+                    p_state->temp[T_TAR] = CTL_TEMP_DEFAULT;
+                }
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
+                g_indication_flag |= INDICATION_FLAG_CTL;
+#endif
+            }
+#endif
+        }
+#endif
+    } else if(type == T_CUR) {
+    }
+    BT_DBG("temp cur(%04x) tar(%04x)", p_state->temp[T_CUR], p_state->temp[T_TAR]);
+}
+

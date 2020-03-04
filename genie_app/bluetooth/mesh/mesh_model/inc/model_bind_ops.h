@@ -52,7 +52,7 @@ typedef enum _BIND_OPERATION_ID_ {
  * @param[in] type
  * @return
  */
-u16_t model_bind_operation(E_BIND_OPERATION_ID id, S_ELEM_STATE *p_elem, u8_t type);
+u16_t model_bind_operation(E_BIND_OPERATION_ID id, elem_state_t *p_elem, u8_t type);
 
 
 #endif //_MODEL_BOUND_OPERATION_H

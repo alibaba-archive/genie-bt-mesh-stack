@@ -25,7 +25,6 @@ struct k_timer g_vnd_msg_timer;
 
 /**
  * vendor model publish context, alloc maximum message buffer size
- * Ethan: do we need to shrink the message size here?
  * */
 struct bt_mesh_model_pub g_vendor_model_alibaba_pub = {
     //max = 2 seg package
@@ -175,7 +174,6 @@ static void _vendor_model_retry_timer_cb(void *p_timer, void *args) {
         p_msg = &p_msg_node->msg;
         BT_DBG("msg:%p, opid:%d, left:%d", p_msg, p_msg->opid, p_msg_node->left_retry);
 
-        /* Ethan: TODO - need to consider the wrap round case */
         if (p_msg_node->timeout <= k_now_ms()) {
             BT_DBG("timeout - msg:%p, opid:%x, left:%d", p_msg, p_msg->opid, p_msg_node->left_retry);
             vendor_model_msg_send(p_msg);
@@ -243,10 +241,6 @@ static s16_t _vendor_model_msg_check_tid(sys_dlist_t *p_head, u8_t tid) {
     return 0;
 }
 
-/**
- * Ethan: need to add lock to prevent from multiple access
- * */
-
 /** @def vendor_model_msg_send
  *
  *  @brief send the vendor model message
@@ -264,7 +258,6 @@ s16_t vendor_model_msg_send(vnd_model_msg *p_model_msg)
     struct bt_mesh_msg_ctx ctx;
     bool resend_flag = false;
 
-    // Ethan: temp solution
     vendor_model_init();
 
     if (!p_model){
@@ -291,7 +284,6 @@ s16_t vendor_model_msg_send(vnd_model_msg *p_model_msg)
         resend_flag = true;
     }
     /**
-     * Ethan: if tid is invalid [0, 0x80), assign valid tid
      * only when opid is one of  VENDOR_OP_ATTR_CONFIME, VENDOR_OP_ATTR_CONFIME_TG and VENDOR_OP_ATTR_TRANS_ACK, shall we keep tid as it is
      * */
     if (!(p_model_msg->tid) &&
