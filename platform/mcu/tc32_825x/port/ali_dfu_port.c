@@ -197,8 +197,23 @@ int ali_dfu_image_update(short signature, int offset, int length, int/*void*/ *b
 	}
     printf("offset=%d,len=%d\n", offset, length);
 
-    // read back and check  later.
+   	if (offset <= 0x08 && (offset+length) > 0x08) {
+		buf[0x08 - offset] = 0xFF;
+   	}
     flash_write_page(ota_program_offset + offset, length, (unsigned char *)buf);
+    // read back and check.
+	unsigned char check_buf[64];
+	for (int i=0;i<length;) {
+		int check_len = length - i;
+		if (check_len > sizeof(check_buf)) {
+			check_len = sizeof(check_buf);
+		}
+		flash_read_page(ota_program_offset + offset + i, check_len, check_buf);
+		if (0 != memcmp(&buf[i], check_buf, check_len)) {
+			return -2;
+		}
+		i += check_len;
+	}
 
 	return 0;
 }
