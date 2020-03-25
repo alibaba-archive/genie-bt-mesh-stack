@@ -1342,8 +1342,7 @@ static void _elem_sub_bind(struct bt_mesh_elem *p_elem)
     uint8_t i = 0;
     struct bt_mesh_model *p_mod;
 
-    BT_DBG("");
-    dump_print((char *)g_sub_list, sizeof(g_sub_list));
+    BT_DBG("sub: %s", bt_hex(g_sub_list, sizeof(g_sub_list)));
     for (i = 0; i < p_elem->model_count; i++) {
         p_mod = bt_mesh_model_find(p_elem, p_elem->models[i].id);
         memcpy(p_mod->groups, g_sub_list, sizeof(g_sub_list));

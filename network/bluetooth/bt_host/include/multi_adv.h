@@ -5,6 +5,8 @@
 #ifndef _MULTI_ADV_H_
 #define _MULTI_ADV_H_
 
+#include "port/mesh_hal_os.h"
+
 #define MAX_MULTI_ADV_INSTANT       4
 #define MAX_AD_DATA_LEN             31
 

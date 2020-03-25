@@ -295,6 +295,7 @@ static void adv_thread(void *p1, void *p2, void *p3)
 #ifdef CONFIG_BT_MESH_MULTIADV
         bt_mesh_multi_adv_thread_run();
 #else
+        uint32_t time_start;
         struct net_buf *buf;
 
         if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {

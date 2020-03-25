@@ -60,7 +60,7 @@ static void _genie_reset_timer_cb(void *p_timer, void *args)
 {
     uint8_t number = 0;
 
-    //BT_DBG("%s", __func__);
+    BT_DBG("");
     _genie_reset_write_count(number);
 }
 

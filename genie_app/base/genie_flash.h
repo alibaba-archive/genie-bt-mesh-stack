@@ -11,7 +11,7 @@
 #include "net.h"
 #include "flash.h"
 
-typedef enum {
+enum {
     GENIE_FLASH_INDEX_START = 0,
     GFI_MESH_PARA,
     GFI_MESH_TRITUPLE,
@@ -21,7 +21,10 @@ typedef enum {
     GFI_MESH_RESET_CNT,
     GFI_MESH_RESET_FLAG,
     GFI_MESH_POWERUP,
-} E_GENIE_FLASH_INDEX;
+    GFI_OTA_INDICAT,
+    GFI_OTA_IMAGE_CHANGE,
+    GFI_USERDATA_START,
+};
 
 typedef enum
 {

@@ -3,7 +3,7 @@ NAME := genie_app
 ble = 1
 
 $(NAME)_MBINS_TYPE := kernel
-$(NAME)_VERSION := 1.0.1
+$(NAME)_VERSION := 1.0.2
 $(NAME)_SUMMARY := Genie mesh application.
 
 GLOBAL_CFLAGS += -DSYSINFO_BUILD_TIME=\"$(CURRENT_TIME)\"
@@ -37,11 +37,11 @@ GLOBAL_DEFINES += CONFIG_GENIE_RESET_BY_REPEAT
 
 
 ####### ota config #######
-GENIE_GATT_OTA = 1
-ifeq ($(GENIE_GATT_OTA),1)
+GENIE_OTA = 1
+ifeq ($(GENIE_OTA),1)
 $(NAME)_SOURCES  += bluetooth/host/profile/ais_srv/ais_service.c
 endif
-GLOBAL_DEFINES += CONFIG_AIS_AUTH
+GLOBAL_DEFINES += CONFIG_GENIE_OTA
 
 ####### model config #######
 

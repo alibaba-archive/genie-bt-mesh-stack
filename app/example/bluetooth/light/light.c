@@ -266,10 +266,12 @@ void reset_light_para(void)
         g_elem_state[i].state.onoff[T_TAR] = GEN_ONOFF_DEFAULT;
         g_elem_state[i].state.actual[T_TAR] = LIGHTNESS_DEFAULT;
         g_elem_state[i].state.temp[T_TAR] = CTL_TEMP_DEFAULT;
+#ifdef CONFIG_MESH_MODEL_TRANS
         g_elem_state[i].state.trans = 0;
         g_elem_state[i].state.delay = 0;
         g_elem_state[i].state.trans_start_time = 0;
         g_elem_state[i].state.trans_end_time = 0;
+#endif
         g_elem_state[i].powerup.last_actual = LIGHTNESS_DEFAULT;
         g_elem_state[i].powerup.last_temp = CTL_TEMP_DEFAULT;
         g_powerup[i].last_actual = LIGHTNESS_DEFAULT;
@@ -527,6 +529,18 @@ static void temperature_to_pwm(uint16_t cw_in,uint16_t *cw_pwm)
         }
     }
 }
+
+#ifdef CONFIG_GENIE_OTA
+bool ota_check_reboot(void)
+{
+    if(g_elem_state[0].state.onoff[T_CUR] == 0) {
+        BT_DBG_R("reboot!");
+        return true;
+    }
+    BT_DBG_R("no reboot!");
+    return false;
+}
+#endif
 
 void user_event(E_GENIE_EVENT event, void *p_arg)
 {

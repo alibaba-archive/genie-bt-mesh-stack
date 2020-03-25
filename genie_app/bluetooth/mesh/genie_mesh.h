@@ -26,6 +26,7 @@
 
 #define UNPROV_ADV_FEATURE_AUTO_BIND_MODEL_SUB     0x02
 #define UNPROV_ADV_FEATURE_SILENT_ADV              0x01
+#define UNPROV_ADV_FLAG_GENIE_MESH_STACK           0x02
 
 typedef enum {
     T_CUR = 0,

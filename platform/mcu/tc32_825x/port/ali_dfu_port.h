@@ -24,6 +24,14 @@
 #define _ALI_DFU_PORT_H
 #include <stdbool.h>
 
+enum {
+
+    DFU_IMAGE_A = 0,
+    DFU_IMAGE_B,
+    DFU_IMAGE_TOTAL = DFU_IMAGE_B,
+    DFU_IMAGE_ERR,
+};
+
 bool dfu_check_checksum(short image_id, unsigned short *crc16_output);
 int get_image_crc();
 void unlock_flash_all();

@@ -95,8 +95,10 @@ uint8_t *genie_tri_tuple_get_uuid(void)
         g_uuid[7 + i] = g_mac[5 - i];
     }
 
-    g_uuid[13] = 0;
-    g_uuid[13] |= UNPROV_ADV_FEATURE_AUTO_BIND_MODEL_SUB;
+    g_uuid[13] = UNPROV_ADV_FEATURE_AUTO_BIND_MODEL_SUB;
+
+    g_uuid[14] = UNPROV_ADV_FLAG_GENIE_MESH_STACK;
+
 
     BT_DBG("uuid: %s", bt_hex(g_uuid, 16));
 
@@ -134,22 +136,18 @@ uint8_t *genie_tri_tuple_get_auth(void)
     ret = tc_sha256_final(g_auth, &sha256_ctx);
     if (ret != TC_CRYPTO_SUCCESS) {
         BT_ERR("sha256 final fail\n");
+    } else {
+        BT_DBG("auth: %s", bt_hex((char *)g_auth, 16));
     }
-#if 1
-    else {
-        BT_DBG("auth:");
-        dump_print((char *)g_auth, 16);
-    }
-#endif
     return g_auth;
 }
 #else
 uint8_t *genie_tri_tuple_get_auth(const uint8_t random[16])
 {
     int ret;
-    char mac_str[GENIE_SIZE_MAC<<1+1] = "";
-    char key_str[GENIE_SIZE_KEY<<1+1] = "";
-    char static_str[72] = ""; // pid + ',' + mac + ',' + secret = 8+1+12+1+32+1+16'\0'
+    char mac_str[(GENIE_SIZE_MAC<<1)+1] = "";
+    char key_str[(GENIE_SIZE_KEY<<1)+1] = "";
+    char static_str[88] = ""; // pid + ',' + mac + ',' + secret = 8+1+12+1+32+1+32'\0'
     char rad_str[33] = "";
     struct tc_sha256_state_struct sha256_ctx;
 
@@ -169,7 +167,7 @@ uint8_t *genie_tri_tuple_get_auth(const uint8_t random[16])
         BT_ERR("sha256 init fail\n");
     }
 
-    ret = tc_sha256_update(&sha256_ctx, static_str, strlen(static_str));
+    ret = tc_sha256_update(&sha256_ctx, (const uint8_t *)static_str, strlen(static_str));
     if (ret != TC_CRYPTO_SUCCESS) {
         BT_ERR("sha256 udpate fail\n");
     }
@@ -177,13 +175,9 @@ uint8_t *genie_tri_tuple_get_auth(const uint8_t random[16])
     ret = tc_sha256_final(g_auth, &sha256_ctx);
     if (ret != TC_CRYPTO_SUCCESS) {
         BT_ERR("sha256 final fail\n");
+    } else {
+        BT_DBG("auth: %s", bt_hex((char *)g_auth, 16));
     }
-#if 1
-    else {
-        BT_DBG("auth:");
-        dump_print(g_auth, 16);
-    }
-#endif
     return g_auth;
 }
 #endif
@@ -249,18 +243,12 @@ void genie_ais_get_cipher(const uint8_t random[16], uint8_t *cipher)
     ret = tc_sha256_final(g_ble_key, &sha256_ctx);
     if (ret != TC_CRYPTO_SUCCESS) {
         BT_ERR("sha256 final fail\n");
+    } else {
+        BT_DBG("auth: %s", bt_hex((char *)g_ble_key, 16));
     }
-#if 1
-    else {
-        BT_DBG("blekey:");
-        dump_print((char *)g_ble_key, 16);
-    }
-#endif
     genie_ais_encrypt(random, cipher);
-#if 1
-    BT_DBG("cipher:");
-    dump_print((char *)cipher, 16);
-#endif
+
+    BT_DBG("cipher: %s", bt_hex((char *)cipher, 16));
 }
 
 void genie_ais_reset(void)
@@ -270,9 +258,8 @@ void genie_ais_reset(void)
 
 void genie_ais_adv_init(uint8_t ad_structure[14])
 {
-#ifdef CONFIG_AIS_AUTH
     ad_structure[3] |= 0x08; //FMSK auth enable
-#endif
+
     memcpy(ad_structure+4, &g_pid, 4);
     memcpy(ad_structure+8, g_mac, 6);
 }

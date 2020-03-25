@@ -574,6 +574,7 @@ static void prov_capabilities(const u8_t *data)
     BT_DBG("Input OOB Action:  0x%04x", input_action);
 }
 
+#if 0
 static bt_mesh_output_action_t output_action(u8_t action)
 {
     switch (action) {
@@ -607,6 +608,7 @@ static bt_mesh_input_action_t input_action(u8_t action)
             return BT_MESH_NO_INPUT;
     }
 }
+#endif
 
 static int prov_auth(u8_t method, u8_t action, u8_t size)
 {
@@ -1275,6 +1277,7 @@ static void prov_msg_recv(void)
     u8_t type = link.rx.buf->data[0];
 
     BT_DBG("type 0x%02x len %u", type, link.rx.buf->len);
+    BT_DBG("data %s", bt_hex(link.rx.buf->data, link.rx.buf->len));
 
     if (!bt_mesh_fcs_check(link.rx.buf, link.rx.fcs)) {
         BT_ERR("Incorrect FCS");

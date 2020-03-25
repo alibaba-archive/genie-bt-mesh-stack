@@ -11,6 +11,10 @@
 #include "base/genie_reset.h"
 #include "base/tri_tuple.h"
 
+#ifdef CONFIG_GENIE_OTA
+#include "bluetooth/host/profile/ais_srv/ais_service.h"
+#endif
+
 #include "bluetooth/mesh/genie_mesh.h"
 
 /**

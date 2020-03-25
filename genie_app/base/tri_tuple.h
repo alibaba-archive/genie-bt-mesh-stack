@@ -53,16 +53,49 @@ uint8_t genie_tri_tuple_check_pid(uint32_t pid);
  * @return 0 for success, otherwise failed.
  */
 int8_t genie_tri_tuple_load(void);
+
 /**
  * @brief dump the trituple info.
  */
 void genie_tri_tuple_show(void);
 
+#ifdef CONFIG_GENIE_OTA
+/**
+ * @brief encrypt ais data.
+ * @param[in] raw data
+ * @param[out] encryped data
+ */
 void genie_ais_encrypt(const uint8_t data_in[16], uint8_t data_out[16]);
+
+/**
+ * @brief decrypt ais data.
+ * @param[in] encryped data
+ * @param[out] raw data
+ */
 void genie_ais_decrypt(const uint8_t data_in[16], uint8_t data_out[16]);
+
+/**
+ * @brief get the cipher for ble auth.
+ * @param[in] random, 16 Byte
+ * @param[out] cipher, 1 6Byte
+ */
 void genie_ais_get_cipher(const uint8_t random[16], uint8_t *cipher);
+
+/**
+ * @brief clear the keys of ais service.
+ */
 void genie_ais_reset(void);
+
+/**
+ * @brief init the ais advertising.
+ * @param[inout] the phoint of advertising data
+ */
 void genie_ais_adv_init(uint8_t ad_structure[14]);
+#endif
+
+/**
+ * @brief set the flag of the mesh advertising.
+ */
 void genie_tri_tuple_set_silent_adv(void);
 
 #endif/*--_TRI_TUPLE_H_--*/

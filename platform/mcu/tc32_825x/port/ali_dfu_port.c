@@ -249,3 +249,26 @@ void dfu_reboot()
 	hal_reboot();
 }
 
+uint8_t get_program_image(void)
+{
+	return (ota_program_offset == 0) ? DFU_IMAGE_B : DFU_IMAGE_A;
+}
+
+uint8_t change_program_image(uint8_t dfu_image)
+{
+	if (dfu_image >= DFU_IMAGE_ERR){
+		return DFU_IMAGE_ERR;
+	}
+	uint8_t current_image = get_program_image();
+	if (dfu_image != current_image){
+		unsigned int flag;
+		flash_read_page(ota_program_offset+0x08, 4, (unsigned char *)&flag);
+		if (flag != 0x544c4eff){
+			return DFU_IMAGE_ERR;
+		}
+		ota_set_flag();
+	}
+	return dfu_image;
+}
+
+

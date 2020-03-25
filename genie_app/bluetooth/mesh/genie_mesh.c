@@ -322,7 +322,7 @@ uint8_t vendor_indication_buff(elem_state_t *p_elem_state, uint8_t *p_buff, uint
 }
 #endif
 
-void mdoel_standart_event(elem_state_t *p_elem)
+void model_standart_event(elem_state_t *p_elem)
 {
     E_GENIE_EVENT next_event = GENIE_EVT_SDK_ACTION_DONE;
 
@@ -456,9 +456,7 @@ void genie_sub_list_init(void)
         mesh_sub_init(g_sub_list);
         genie_flash_write_sub(g_sub_list);
     }
-    BT_DBG("");
-    dump_print((char *)g_sub_list, sizeof(g_sub_list));
-    //BT_DBG("0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x", g_sub_list[0], g_sub_list[1], g_sub_list[2], g_sub_list[3], g_sub_list[4], g_sub_list[5]);
+    BT_DBG("sub: %s", bt_hex(g_sub_list, sizeof(g_sub_list)));
 }
 
 s16_t genie_vendor_model_msg_send(vnd_model_msg *p_vendor_msg) {

@@ -29,7 +29,6 @@
 #include "hci_ecc.h"
 #include "ecc.h"
 #include "multi_adv.h"
-#include "port/mesh_hal_os.h"
 #include "work.h"
 
 static struct multi_adv_instant g_multi_adv_list[MAX_MULTI_ADV_INSTANT];

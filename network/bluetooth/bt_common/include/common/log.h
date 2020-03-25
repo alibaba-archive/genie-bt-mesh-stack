@@ -78,7 +78,9 @@ __printf_like(2, 3) void bt_log(int prio, const char *fmt, ...);
 #define BT_STACK_DEBUG_EXTRA    10
 #endif
 
+#if BT_DBG_ENABLED
 #define BT_PRT printf
+#endif
 #else
 
 #define BT_DBG(fmt, ...)
@@ -178,7 +180,6 @@ __printf_like(2, 3) void bt_log(int prio, const char *fmt, ...);
 /* This helper is only available when BT_DEBUG is enabled */
 const char *bt_hex(const void *buf, size_t len);
 
-void dump_print(char *p, size_t len);
 u8_t stringtohex(char *str, u8_t *out, u8_t count);
 void hextostring(const uint8_t *source, char *dest, int len);
 u8_t stringtohex(char *str, u8_t *out, u8_t count);

@@ -123,6 +123,8 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
     uint16_t addr;
     uint32_t seq;
 
+    print_sw_info();
+
     if(genie_flash_read_addr(&addr) == GENIE_FLASH_SUCCESS && genie_flash_read_seq(&seq) == GENIE_FLASH_SUCCESS){
         BT_DBG("addr(0x%04x) seq(%d)", addr, seq);
         if(genie_flash_read_para(&bt_mesh) == GENIE_FLASH_SUCCESS){

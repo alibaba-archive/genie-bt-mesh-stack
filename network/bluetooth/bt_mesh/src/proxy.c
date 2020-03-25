@@ -28,6 +28,7 @@
 #include "access.h"
 #include "proxy.h"
 #include <port/mesh_hal_ble.h>
+#include <port/mesh_hal_sec.h>
 #include "bt_mesh_custom_log.h"
 #ifdef CONFIG_BT_MESH_MULTIADV
 #include "multi_adv.h"
@@ -550,6 +551,10 @@ static void proxy_connected(bt_mesh_conn_t conn, u8_t err)
     client->filter_type = NONE;
     memset(client->filter, 0, sizeof(client->filter));
     net_buf_simple_init(&client->buf, 0);
+
+#ifdef CONFIG_GENIE_OTA
+    ais_connect((struct bt_conn *)conn);
+#endif
 }
 
 static void proxy_disconnected(bt_mesh_conn_t conn, u8_t reason)
@@ -576,6 +581,9 @@ static void proxy_disconnected(bt_mesh_conn_t conn, u8_t reason)
     }
 
     bt_mesh_adv_update();
+#ifdef CONFIG_GENIE_OTA
+    ais_ota_disconnect(0);
+#endif
 }
 
 struct net_buf_simple *bt_mesh_proxy_get_buf(void)
@@ -990,7 +998,7 @@ static const struct bt_mesh_data node_id_ad[] = {
 
 static const struct bt_mesh_data net_id_ad[] = {
     BT_MESH_DATA_BYTES(BT_MESH_DATA_FLAGS, (BT_MESH_LE_AD_GENERAL | BT_MESH_LE_AD_NO_BREDR)),
-    BT_MESH_DATA_BYTES(BT_MESH_DATA_UUID16_ALL, 0x28, 0x18),
+    BT_MESH_DATA_BYTES(BT_MESH_DATA_UUID16_SOME, 0x28, 0x18),
     BT_MESH_DATA(BT_MESH_DATA_SVC_DATA16, proxy_svc_data, NET_ID_LEN),
 };
 
@@ -1070,8 +1078,8 @@ static int net_id_adv(struct bt_mesh_subnet *sub)
                 multi_adv->gatt_proxy_intant_id = 0;
             }
     
-            err = bt_mesh_multi_adv_start(&fast_adv_param, node_id_ad,
-                                 ARRAY_SIZE(node_id_ad), NULL, 0, &intant_id);
+            err = bt_mesh_multi_adv_start(&fast_adv_param, net_id_ad,
+                                 ARRAY_SIZE(net_id_ad), NULL, 0, &intant_id);
             if (!err) {
                 multi_adv->gatt_proxy_intant_id = intant_id;
             }
@@ -1279,7 +1287,7 @@ void bt_mesh_proxy_adv_init(void)
     multi_adv->pb_gatt_intant_id = 0;
     multi_adv->gatt_proxy_intant_id = 0;
 
-    k_delayed_work_init(&g_proxy_adv_timer, bt_mesh_proxy_adv_timer_callback);
+    k_delayed_work_init(&g_proxy_adv_timer, (k_work_handler_t)bt_mesh_proxy_adv_timer_callback);
     k_delayed_work_submit(&g_proxy_adv_timer, 1000);
 }
 

@@ -53,13 +53,18 @@ static void _reboot_handle(char *pwbuf, int blen, int argc, char **argv)
     aos_reboot();
 }
 
+void print_sw_info(void)
+{
+    BT_INFO("DEVICE:%s", CONFIG_BT_DEVICE_NAME);
+    BT_INFO("SW VER:%08x", PROJECT_SW_VERSION);
+    BT_INFO("SDK:v%s", APP_SDK_VERSION);
+    BT_INFO("OS:v%d", SYSINFO_OS_VERSION);
+    BT_INFO("PROUDUCT:%s", SYSINFO_PRODUCT_MODEL);
+}
+
 static void _get_sw_info(char *pwbuf, int blen, int argc, char **argv)
 {
-    printk("SW VER:%08x\n", PROJECT_SW_VERSION);
-    printk("SDK:v%s\n", APP_SDK_VERSION);
-    printk("OS:v%d\n", SYSINFO_OS_VERSION);
-    printk("DEVICE:%s\n", SYSINFO_DEVICE_NAME);
-    printk("PROUDUCT:%s\n", SYSINFO_PRODUCT_MODEL);
+    print_sw_info();
 }
 
 extern uint32_t dump_mm_info_used(void);

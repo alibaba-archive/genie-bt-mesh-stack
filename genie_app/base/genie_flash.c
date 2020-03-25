@@ -62,7 +62,7 @@ flag(1B) | align(1B) | index(2B) | len(2B) | CRC(2B) | data(nB)
                                                 cell.pno = pn;                  \
                                                 cell.offset = start;            \
                                                 cell.end = start+size;          \
-                                                memset(&cell.header, 0, sizeof(S_FLASH_HEADER));
+                                                memset(&cell.header, 0, sizeof(flash_header_t));
 
 #define CELL_PREPEAR_RELIABLE(cell, id) CELL_PREPEAR(cell, id, GENIE_FLASH_PARTITION_SYSTEM,  \
                                             GENIE_FLASH_START_RELIABLE, GENIE_FLASH_SIZE_RELIABLE)
@@ -80,24 +80,24 @@ typedef struct
     uint16_t index;
     uint16_t length;
     uint16_t crc;
-} S_FLASH_HEADER;
+} flash_header_t;
 
 typedef struct{
     uint16_t index;
     hal_partition_t pno;
     uint32_t offset;
     uint32_t end;
-    S_FLASH_HEADER header;
-} S_GENIE_FLASH_CELL;
+    flash_header_t header;
+} genie_flash_cell_t;
 
 typedef struct{
     uint16_t remain;
     uint32_t free_offset;
-} S_GENIE_FLASH_INFO;
+} genie_flash_info_t;
 
-static S_GENIE_FLASH_INFO g_info_system;
-static S_GENIE_FLASH_INFO g_info_userdata;
-static S_GENIE_FLASH_INFO g_info_recycle;
+static genie_flash_info_t g_info_system;
+static genie_flash_info_t g_info_userdata;
+static genie_flash_info_t g_info_recycle;
 
 #define CHECK_RET(ret) { if(ret != 0) BT_ERR("error ret(%d)", ret); }
 #if(BT_DBG_ENABLED == 1)
@@ -127,8 +127,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_encrypt(uint8_t *p_buff, uint16_t size
 
     while(i < size >> 4) {
         memcpy(data_temp, p_buff+(i<<4), 16);
-        //BT_DBG("data");
-        //dump_print(data_temp, 16);
+        BT_DBG("data: %s", bt_hex(data_temp, 16));
         bt_mesh_aes_encrypt(g_enc_key, data_temp, enc_temp);
         memcpy(p_buff+(i<<4), enc_temp, 16);
         i++;
@@ -146,8 +145,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_decrypt(uint8_t *p_buff, uint16_t size
     while(i < size >> 4) {
         memcpy(data_temp, p_buff+(i<<4), 16);
         bt_mesh_aes_decrypt(g_enc_key, data_temp, dec_temp);
-        //BT_DBG("dec");
-        //dump_print(dec_temp, 16);
+        BT_DBG("dec: %s", bt_hex(dec_temp, 16));
         memcpy(p_buff+(i<<4), dec_temp, 16);
         i++;
     }
@@ -187,7 +185,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_erase(void)
     return GENIE_FLASH_SUCCESS;
 }
 
-static E_GENIE_FLASH_ERRCODE _genie_flash_get_header(S_GENIE_FLASH_CELL *p_cell)
+static E_GENIE_FLASH_ERRCODE _genie_flash_get_header(genie_flash_cell_t *p_cell)
 {
     int32_t ret = 0;
 
@@ -196,16 +194,16 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_get_header(S_GENIE_FLASH_CELL *p_cell)
     if(p_cell->offset < p_cell->end) {
 
         ret = hal_flash_read(p_cell->pno, &p_cell->offset, (uint8_t *)(&p_cell->header),
-                                sizeof(S_FLASH_HEADER));
+                                sizeof(flash_header_t));
 
         RETURN_WHEN_ERR(ret, GENIE_FLASH_READ_FAIL);
 #if 0
         BT_DBG("offset(0x%04X) flag(0x%02X) align(%d) index(0x%04X) length(%d) crc(0x%04X)",
-                p_cell->offset-sizeof(S_FLASH_HEADER), p_cell->header.flag, p_cell->header.align,
+                p_cell->offset-sizeof(flash_header_t), p_cell->header.flag, p_cell->header.align,
                 p_cell->header.index, p_cell->header.length, p_cell->header.crc);
 #endif
         /* move offset to header*/
-        p_cell->offset -= sizeof(S_FLASH_HEADER);
+        p_cell->offset -= sizeof(flash_header_t);
 
         if(p_cell->header.flag != GENIE_FLASH_FLAG_UNSED) {
             return GENIE_FLASH_SUCCESS;
@@ -217,7 +215,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_get_header(S_GENIE_FLASH_CELL *p_cell)
 static E_GENIE_FLASH_ERRCODE _genie_flash_check_remain(void)
 {
     E_GENIE_FLASH_ERRCODE ret;
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     /* system */
     g_info_system.remain = GENIE_FLASH_SIZE_RELIABLE;
@@ -226,9 +224,9 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_check_remain(void)
         ret = _genie_flash_get_header(&cell);
         if(ret == GENIE_FLASH_SUCCESS) {
             if(cell.header.flag == GENIE_FLASH_FLAG_ACTIVE) {
-                g_info_system.remain -= sizeof(S_FLASH_HEADER) + cell.header.length + cell.header.align;
+                g_info_system.remain -= sizeof(flash_header_t) + cell.header.length + cell.header.align;
             }
-            cell.offset += sizeof(S_FLASH_HEADER) + cell.header.length + cell.header.align;
+            cell.offset += sizeof(flash_header_t) + cell.header.length + cell.header.align;
         }
     } while(ret == GENIE_FLASH_SUCCESS);
     if(g_info_system.remain > GENIE_FLASH_SIZE_RELIABLE) {
@@ -245,9 +243,9 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_check_remain(void)
         ret = _genie_flash_get_header(&cell);
         if(ret == GENIE_FLASH_SUCCESS) {
             if(cell.header.flag == GENIE_FLASH_FLAG_ACTIVE) {
-                g_info_userdata.remain -= sizeof(S_FLASH_HEADER) + cell.header.length + cell.header.align;
+                g_info_userdata.remain -= sizeof(flash_header_t) + cell.header.length + cell.header.align;
             }
-            cell.offset += sizeof(S_FLASH_HEADER) + cell.header.length + cell.header.align;
+            cell.offset += sizeof(flash_header_t) + cell.header.length + cell.header.align;
         }
     } while(ret == GENIE_FLASH_SUCCESS);
     if(g_info_userdata.remain > GENIE_FLASH_SIZE_USERDATA) {
@@ -315,7 +313,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_init(void)
     return ret;
 }
 
-static E_GENIE_FLASH_ERRCODE _genie_flash_search(S_GENIE_FLASH_CELL *p_cell)
+static E_GENIE_FLASH_ERRCODE _genie_flash_search(genie_flash_cell_t *p_cell)
 {
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
 
@@ -329,7 +327,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_search(S_GENIE_FLASH_CELL *p_cell)
             return GENIE_FLASH_SUCCESS;
         } else {
             /* found next cell */
-            p_cell->offset += sizeof(S_FLASH_HEADER) + p_cell->header.length + p_cell->header.align;
+            p_cell->offset += sizeof(flash_header_t) + p_cell->header.length + p_cell->header.align;
         }
     } while(ret == GENIE_FLASH_SUCCESS);
 
@@ -337,7 +335,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_search(S_GENIE_FLASH_CELL *p_cell)
     return ret;
 }
 
-static E_GENIE_FLASH_ERRCODE _genie_flash_read(S_GENIE_FLASH_CELL *p_cell, uint8_t *p_buff, uint16_t size)
+static E_GENIE_FLASH_ERRCODE _genie_flash_read(genie_flash_cell_t *p_cell, uint8_t *p_buff, uint16_t size)
 {
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
 
@@ -349,7 +347,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_read(S_GENIE_FLASH_CELL *p_cell, uint8
     }
 
     /* move offset */
-    p_cell->offset += sizeof(S_FLASH_HEADER);
+    p_cell->offset += sizeof(flash_header_t);
 
     ret = hal_flash_read(p_cell->pno, &p_cell->offset, p_buff, size);
     RETURN_WHEN_ERR(ret, GENIE_FLASH_READ_FAIL);
@@ -362,7 +360,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_read(S_GENIE_FLASH_CELL *p_cell, uint8
     }
 }
 
-static E_GENIE_FLASH_ERRCODE _genie_flash_copy(S_GENIE_FLASH_CELL *p_src, S_GENIE_FLASH_CELL *p_dst)
+static E_GENIE_FLASH_ERRCODE _genie_flash_copy(genie_flash_cell_t *p_src, genie_flash_cell_t *p_dst)
 {
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
     uint8_t *p_data;
@@ -393,18 +391,18 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_copy(S_GENIE_FLASH_CELL *p_src, S_GENI
         if(ret == GENIE_FLASH_SUCCESS && p_src->header.flag == GENIE_FLASH_FLAG_ACTIVE) {
             /* step 2.1 copy new header */
             BT_DBG("2.1 copy header");
-            memcpy(&p_dst->header, &p_src->header, sizeof(S_FLASH_HEADER));
+            memcpy(&p_dst->header, &p_src->header, sizeof(flash_header_t));
 
             /* step 2.2 write header */
             BT_DBG("2.2 src(0x%04X) dst(0x%04X)", p_src->offset, p_dst->offset);
             flag_offset = (uint32_t)&p_dst->header.flag - (uint32_t)&p_dst->header + p_dst->offset;
             p_dst->header.flag = GENIE_FLASH_FLAG_WRITING;
-            ret = hal_flash_write(p_dst->pno, &p_dst->offset, &p_dst->header, sizeof(S_FLASH_HEADER));
+            ret = hal_flash_write(p_dst->pno, &p_dst->offset, &p_dst->header, sizeof(flash_header_t));
             RETURN_WHEN_ERR(ret, GENIE_FLASH_WRITE_FAIL);
 
             /* step 2.3 read data */
             BT_DBG("2.3 read data");
-            p_src->offset += sizeof(S_FLASH_HEADER);
+            p_src->offset += sizeof(flash_header_t);
             p_data = k_malloc(p_src->header.length);
             if(p_data == NULL) {
                 BT_ERR("p_data is null!!!");
@@ -427,7 +425,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_copy(S_GENIE_FLASH_CELL *p_src, S_GENI
             p_src->offset += p_src->header.align;
             p_dst->offset += p_dst->header.align;
         } else {
-            p_src->offset += sizeof(S_FLASH_HEADER) + p_src->header.length + p_src->header.align;
+            p_src->offset += sizeof(flash_header_t) + p_src->header.length + p_src->header.align;
         }
 
         /* read new data */
@@ -436,10 +434,10 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_copy(S_GENIE_FLASH_CELL *p_src, S_GENI
     return GENIE_FLASH_SUCCESS;
 }
 
-static E_GENIE_FLASH_ERRCODE _genie_flash_recycle(S_GENIE_FLASH_CELL *p_cell)
+static E_GENIE_FLASH_ERRCODE _genie_flash_recycle(genie_flash_cell_t *p_cell)
 {
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
-    S_GENIE_FLASH_CELL recycle;
+    genie_flash_cell_t recycle;
 
     CELL_PREPEAR_RECYCLE(recycle);
 
@@ -463,7 +461,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_delete_flag(hal_partition_t pno, uint3
     return GENIE_FLASH_SUCCESS;
 }
 
-static E_GENIE_FLASH_ERRCODE _genie_flash_delete(S_GENIE_FLASH_CELL *p_cell)
+static E_GENIE_FLASH_ERRCODE _genie_flash_delete(genie_flash_cell_t *p_cell)
 {
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
     uint32_t flag_offset;
@@ -480,16 +478,16 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_delete(S_GENIE_FLASH_CELL *p_cell)
     }
 }
 
-static E_GENIE_FLASH_ERRCODE _genie_flash_write(S_GENIE_FLASH_CELL *p_cell, uint8_t *p_buff, uint16_t size)
+static E_GENIE_FLASH_ERRCODE _genie_flash_write(genie_flash_cell_t *p_cell, uint8_t *p_buff, uint16_t size)
 {
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
     uint8_t align_count = 0;
-    S_GENIE_FLASH_INFO *p_info;
+    genie_flash_info_t *p_info;
     uint32_t old_flag_offset = 0xFFFFFFFF;
     uint32_t new_flag_offset = 0xFFFFFFFF;
     uint16_t old_size = 0;
     uint16_t end;
-    S_GENIE_FLASH_CELL recycle;
+    genie_flash_cell_t recycle;
 
     if(size == 0) {
         BT_ERR("size is zero!!!");
@@ -517,14 +515,14 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_write(S_GENIE_FLASH_CELL *p_cell, uint
     }
 
     /* check size */
-    if(p_info->remain < size + sizeof(S_FLASH_HEADER)) {
+    if(p_info->remain < size + sizeof(flash_header_t)) {
         BT_ERR("no space");
         return GENIE_FLASH_WRITE_FAIL;
     }
 
     /* check recycle */
-    if(p_info->free_offset + size + sizeof(S_FLASH_HEADER) > end) {
-        memcpy(&recycle, p_cell, sizeof(S_GENIE_FLASH_CELL));
+    if(p_info->free_offset + size + sizeof(flash_header_t) > end) {
+        memcpy(&recycle, p_cell, sizeof(genie_flash_cell_t));
         ret = _genie_flash_recycle(&recycle);
         RETURN_WHEN_ERR(ret, ret);
         _genie_flash_check_remain();
@@ -533,7 +531,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_write(S_GENIE_FLASH_CELL *p_cell, uint
     /* find old */
     if(_genie_flash_search(p_cell) == GENIE_FLASH_SUCCESS) {
         old_flag_offset = (uint32_t)&p_cell->header.flag - (uint32_t)&p_cell->header + p_cell->offset;
-        old_size = sizeof(S_FLASH_HEADER) +p_cell->header.length + p_cell->header.align;
+        old_size = sizeof(flash_header_t) +p_cell->header.length + p_cell->header.align;
     }
 
     //step 1 write new data
@@ -550,7 +548,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_write(S_GENIE_FLASH_CELL *p_cell, uint
     p_cell->header.crc = _genie_get_crc(p_buff, size);
 
     BT_DBG("step1.1 write header offset(0x%04X)", p_cell->offset);
-    ret = hal_flash_write(p_cell->pno, &p_cell->offset, &p_cell->header, sizeof(S_FLASH_HEADER));
+    ret = hal_flash_write(p_cell->pno, &p_cell->offset, &p_cell->header, sizeof(flash_header_t));
     RETURN_WHEN_ERR(ret, GENIE_FLASH_WRITE_FAIL);
 
     BT_DBG("step1.2 write data offset(0x%04X)", p_cell->offset);
@@ -564,7 +562,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_write(S_GENIE_FLASH_CELL *p_cell, uint
     RETURN_WHEN_ERR(ret, GENIE_FLASH_WRITE_FAIL);
 
     /* update remain & free*/
-    p_info->remain -= size + sizeof(S_FLASH_HEADER) + p_cell->header.align;
+    p_info->remain -= size + sizeof(flash_header_t) + p_cell->header.align;
     p_info->free_offset = p_cell->offset + p_cell->header.align;
 
     //modify old flag
@@ -592,7 +590,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_read_reliable(uint16_t index, uint8_t *p_data,
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
     uint16_t buff_size = _genie_flash_get_reliable_size(data_size);
     uint8_t *p_buff = k_malloc(buff_size);
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     if(p_data == NULL) {
         BT_ERR("p_data is null!!!");
@@ -618,7 +616,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_write_reliable(uint16_t index, uint8_t *p_data
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
     uint16_t buff_size = _genie_flash_get_reliable_size(data_size);
     uint8_t *p_buff = k_malloc(buff_size);
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     if(p_data == NULL) {
         BT_ERR("p_data is null!!!");
@@ -640,7 +638,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_write_reliable(uint16_t index, uint8_t *p_data
 
 E_GENIE_FLASH_ERRCODE genie_flash_delete_reliable(uint16_t index)
 {
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     CELL_PREPEAR_RELIABLE(cell, index);
 
@@ -666,7 +664,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_erase_reliable(void)
 
 E_GENIE_FLASH_ERRCODE genie_flash_read_userdata(uint16_t index, uint8_t *p_buff, uint16_t size)
 {
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     CELL_PREPEAR_USERDATA(cell, index);
 
@@ -675,7 +673,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_read_userdata(uint16_t index, uint8_t *p_buff,
 
 E_GENIE_FLASH_ERRCODE genie_flash_write_userdata(uint16_t index, uint8_t *p_buff, uint16_t size)
 {
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     CELL_PREPEAR_USERDATA(cell, index);
 
@@ -684,7 +682,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_write_userdata(uint16_t index, uint8_t *p_buff
 
 E_GENIE_FLASH_ERRCODE genie_flash_delete_userdata(uint16_t index)
 {
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     CELL_PREPEAR_USERDATA(cell, index);
 
@@ -897,7 +895,7 @@ extern const hal_logic_partition_t hal_partitions[];
 static void _genie_print_data(hal_partition_t pno)
 {
     E_GENIE_FLASH_ERRCODE ret = GENIE_FLASH_SUCCESS;
-    S_GENIE_FLASH_CELL cell;
+    genie_flash_cell_t cell;
 
     if(pno == GENIE_FLASH_PARTITION_SYSTEM) {
         CELL_PREPEAR_RELIABLE(cell, 0);
@@ -914,12 +912,12 @@ static void _genie_print_data(hal_partition_t pno)
                 printk("%04X\t %02X\t %d\t %04X\t %04X|%04d\t %04X\n",
                     cell.offset, cell.header.flag, cell.header.align, cell.header.index, cell.header.length,
                     cell.header.length, cell.header.crc);
-                cell.offset += sizeof(S_FLASH_HEADER) + cell.header.length + cell.header.align;
+                cell.offset += sizeof(flash_header_t) + cell.header.length + cell.header.align;
             } else {
                 printk(F_RED "%04X\t %02X\t %d\t %04X\t %04X|%04d\t %04X" F_END "\n",
                     cell.offset, cell.header.flag, cell.header.align, cell.header.index, cell.header.length,
                     cell.header.length, cell.header.crc);
-                cell.offset += sizeof(S_FLASH_HEADER) + cell.header.length + cell.header.align;
+                cell.offset += sizeof(flash_header_t) + cell.header.length + cell.header.align;
             }
         }
     } while(ret == GENIE_FLASH_SUCCESS);

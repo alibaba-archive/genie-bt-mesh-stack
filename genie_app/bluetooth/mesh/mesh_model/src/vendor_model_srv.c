@@ -58,7 +58,7 @@ u16_t vendor_model_init(void) {
     static bool init_flag = false;
 
     if (!init_flag) {
-        BT_INFO("init g_vnd_msg_timer");
+        BT_DBG("init g_vnd_msg_timer");
         k_timer_init(&g_vnd_msg_timer, _vendor_model_retry_timer_cb, &g_vnd_msg_list);
         sys_dlist_init(&g_vnd_msg_list);
     }

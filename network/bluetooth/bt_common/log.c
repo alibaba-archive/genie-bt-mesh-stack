@@ -82,19 +82,6 @@ const char *bt_hex(const void *buf, size_t len)
 }
 #endif
 
-void dump_print(char *p, size_t len)
-{
-    size_t i = 0;
-
-    BT_PRT("===============================================\n");
-    while(i < len) {
-        BT_PRT("%02X ", (u8_t)p[i++]);
-        if(i%16 == 0) BT_PRT("\n");
-    }
-    if(i%16 != 0) BT_PRT("\n");
-    BT_PRT("===============================================\n");
-}
-
 u8_t stringtohex(char *str, u8_t *out, u8_t count)
 {
     u8_t i = 0, j = 0;

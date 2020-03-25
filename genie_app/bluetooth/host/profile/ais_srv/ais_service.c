@@ -1,18 +1,16 @@
 /*
- * Copyright (C) 2015-2018 Alibaba Group Holding Limited
+ * Copyright (C) 2018-2020 Alibaba Group Holding Limited
  */
 
-#include <gatt.h>
 #include <port/mesh_hal_ble.h>
 
 #include "genie_app.h"
 #include "multi_adv.h"
 #include "ali_dfu_port.h"
 
-#define BT_DBG_ENABLED 1
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_OTA)
 #include "common/log.h"
 
-#define AIS_OTA_FAIL_TIMEOUT 3000       //3s
 #define AIS_OTA_AUTH_TIMEOUT 10000      //10s
 #define AIS_OTA_DISCONN_TIMEOUT 60000   //60s
 #define AIS_OTA_REPORT_TIMEOUT (CONFIG_AIS_TOTAL_FRAME*400)
@@ -129,13 +127,27 @@ typedef struct {
     uint32_t image_ver;
     uint32_t image_size;
     uint16_t image_crc16;
-    //uint8_t ota_flag;
+    uint8_t ota_flag;
 } ota_info_t;
 
+enum{
+    AIS_STATE_DISCON,
+    AIS_STATE_CONNECT,
+    AIS_STATE_AUTH,
+    AIS_STATE_IDLE,
+    AIS_STATE_OTA,
+    AIS_STATE_REBOOT,
+};
+
+enum{
+    OTA_FLAG_SILENT = 0x02,
+};
+
 typedef struct {
-    uint8_t auth;
-    uint8_t ota_process;
-    uint8_t disconnect;
+    //uint8_t auth;
+    //uint8_t ota_process;
+    //uint8_t disconnect;
+    uint8_t state;
     struct bt_conn *p_conn;
     k_timer_t timer;
     ota_info_t ota_info;
@@ -148,49 +160,78 @@ static struct bt_gatt_ccc_cfg ais_nc_ccc_cfg[BT_GATT_CCC_MAX] = {};
 static struct bt_gatt_attr _ais_srv_attrs[];
 static struct bt_gatt_indicate_params *p_indicate = NULL;
 
-static void _ais_ota_decrypt(uint8_t *payload, uint8_t len)
+extern bool ota_check_reboot(void);
+
+bool ais_get_ota_indicat(void)
 {
-#ifdef CONFIG_AIS_AUTH
-    uint8_t dec[16];
-    if(g_ais_srv_ctx.auth) {
-        //BT_DBG("payload: %s", bt_hex(payload, 16));
-        genie_ais_decrypt(payload, dec);
-        memcpy(payload, dec, 16);
-        BT_DBG("dec: %s", bt_hex(payload, 16));
+    uint8_t ota_indicat = 0xFF;
+    genie_flash_read_userdata(GFI_OTA_INDICAT, &ota_indicat, sizeof(ota_indicat));
+    if(ota_indicat == 1) {
+        return 1;
     }
-#endif
+    return 0;
+}
+
+void ais_clear_ota_indicat(void)
+{
+    genie_flash_delete_userdata(GFI_OTA_INDICAT);
+}
+
+void ais_check_ota_change(void)
+{
+    uint32_t ota_change = 0xFFFFFFFF;
+    uint8_t ota_image = DFU_IMAGE_ERR;
+    E_GENIE_FLASH_ERRCODE ret;
+    ret = genie_flash_read_reliable(GFI_OTA_IMAGE_CHANGE, (uint8_t *)&ota_change, sizeof(ota_change));
+    if(ret == GENIE_FLASH_SUCCESS) {
+        ota_image = ota_change & 0xFF;
+        if((ota_change>>8) == 0xA5A5A5 && ota_image < DFU_IMAGE_ERR) {
+            if(ota_image != get_program_image()) {
+                BT_DBG("switch to %d", ota_image);
+                if(change_program_image(ota_image) == ota_image) {
+                    genie_flash_delete_reliable(GFI_OTA_IMAGE_CHANGE);
+                    hal_reboot();
+                }
+            }
+        }
+        BT_DBG("del change %d", ota_image);
+        genie_flash_delete_reliable(GFI_OTA_IMAGE_CHANGE);
+    }
+}
+
+static void _ais_set_ota_change(void)
+{
+    uint32_t ota_change = 0xA5A5A500;
+    uint8_t ota_image = DFU_IMAGE_TOTAL - get_program_image();
+    uint8_t ota_indicat = 1;
+
+    genie_flash_write_userdata(GFI_OTA_INDICAT, &ota_indicat, sizeof(ota_indicat));
+
+    if(ota_image < DFU_IMAGE_ERR) {
+        ota_change |= ota_image;
+        BT_DBG("switch to %d", ota_image);
+        genie_flash_write_reliable(GFI_OTA_IMAGE_CHANGE, (uint8_t *)&ota_change, sizeof(ota_change));
+    } else {
+        BT_ERR("image err");
+    }
 }
 
 static void _ais_ota_encrypt(uint8_t *payload, uint8_t len)
 {
-#ifdef CONFIG_AIS_AUTH
     uint8_t enc[16];
-    if(g_ais_srv_ctx.auth) {
-        BT_DBG("payload: %s", bt_hex(payload, 16));
-        genie_ais_encrypt(payload, enc);
-        memcpy(payload, enc, 16);
-        //BT_DBG("enc: %s", bt_hex(payload, 16));
-    }
-#endif
+    BT_DBG("payload: %s", bt_hex(payload, 16));
+    genie_ais_encrypt(payload, enc);
+    memcpy(payload, enc, 16);
+    //BT_DBG("enc: %s", bt_hex(payload, 16));
 }
 
-static void _ais_server_notify(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, uint16_t len)
+static void _ais_ota_decrypt(uint8_t *payload, uint8_t len)
 {
-    ais_pdu_t msg;
-    memset(&msg, 0, sizeof(msg));
-    if(cmd == AIS_SCRT_CIPHER || cmd == AIS_SCRT_ACK) {
-        msg.header.enc = 0;
-    } else {
-        msg.header.enc = 1;
-    }
-    msg.header.msg_id = msg_id;
-    msg.header.cmd = cmd;
-    msg.header.payload_len = len;
-    if(p_msg) {
-        memcpy(msg.payload, p_msg, len);
-    }
-    
-    bt_gatt_notify(NULL, &_ais_srv_attrs[11], &msg, len+4);
+    uint8_t dec[16];
+    //BT_DBG("payload: %s", bt_hex(payload, 16));
+    genie_ais_decrypt(payload, dec);
+    memcpy(payload, dec, 16);
+    BT_DBG("dec: %s", bt_hex(payload, 16));
 }
 
 static void _ais_indicate_rsp(struct bt_conn *conn, const struct bt_gatt_attr *attr, u8_t err)
@@ -202,10 +243,12 @@ static void _ais_indicate_rsp(struct bt_conn *conn, const struct bt_gatt_attr *a
         p_indicate = NULL;
     }
 }
+
 static void _ais_server_indicate(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, uint16_t len)
 {
     ais_pdu_t msg;
 
+    BT_DBG("msg_id %02x %02x", msg_id, cmd);
     if(!p_indicate) {
         p_indicate = aos_malloc(sizeof(struct bt_gatt_indicate_params));
     }
@@ -216,7 +259,11 @@ static void _ais_server_indicate(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, ui
     }
 
     memset(&msg, 0, sizeof(msg));
-    msg.header.enc = 0;
+    if(g_ais_srv_ctx.state == AIS_STATE_IDLE) {
+        msg.header.enc = 1;
+    } else {
+        msg.header.enc = 0;
+    }
     msg.header.msg_id = msg_id;
     msg.header.cmd = cmd;
     msg.header.payload_len = len;
@@ -231,12 +278,74 @@ static void _ais_server_indicate(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, ui
     p_indicate->func = _ais_indicate_rsp;
     p_indicate->data = &msg;
     p_indicate->len = len + 4;
-    bt_gatt_indicate(NULL, p_indicate);
+    bt_gatt_indicate(g_ais_srv_ctx.p_conn, p_indicate);
 }
 
-static void _ais_server_send_err(uint8_t msg_id)
+static void _ais_server_notify(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, uint16_t len)
 {
-    _ais_server_indicate(msg_id, AIS_RESP_ERR, NULL, 0);
+    ais_pdu_t msg;
+
+    BT_DBG("msg_id %02x %02x", msg_id, cmd);
+
+    memset(&msg, 0, sizeof(msg));
+    if(g_ais_srv_ctx.state >= AIS_STATE_IDLE && g_ais_srv_ctx.state <= AIS_STATE_REBOOT) {
+        msg.header.enc = 1;
+    } else {
+        msg.header.enc = 0;
+    }
+    msg.header.msg_id = msg_id;
+    msg.header.cmd = cmd;
+    msg.header.payload_len = len;
+    if(p_msg) {
+        memcpy(msg.payload, p_msg, len);
+    }
+    
+    BT_DBG("len %d: %s", len+4, bt_hex(&msg, len+4));
+
+    bt_gatt_notify(g_ais_srv_ctx.p_conn, &_ais_srv_attrs[11], &msg, len+4);
+}
+
+void ais_ota_disconnect(uint8_t reason)
+{
+    if(g_ais_srv_ctx.state != AIS_STATE_REBOOT) {
+        BT_DBG("disconnect reason 0x%x", reason);
+        k_timer_stop(&g_ais_srv_ctx.timer);
+        bt_conn_disconnect(g_ais_srv_ctx.p_conn, reason);
+        g_ais_srv_ctx.state = AIS_STATE_DISCON;
+    }
+}
+
+static void _ais_timer_refresh(void)
+{
+    BT_DBG_R(" %d", g_ais_srv_ctx.state);
+    switch(g_ais_srv_ctx.state) {
+        case AIS_STATE_DISCON:
+            ais_ota_disconnect(BT_HCI_ERR_UNACCEPT_CONN_PARAM);
+            break;
+        case AIS_STATE_CONNECT:
+        case AIS_STATE_IDLE:
+            k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_DISCONN_TIMEOUT);
+            break;
+        case AIS_STATE_AUTH:
+            k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_AUTH_TIMEOUT);
+            break;
+        case AIS_STATE_OTA:
+            k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REPORT_TIMEOUT);
+            break;
+        case AIS_STATE_REBOOT:
+            k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REBOOT_TIMEOUT);
+            break;
+        default:
+            break;
+    }
+}
+
+void ais_connect(struct bt_conn *p_conn)
+{
+    BT_DBG("status %d", g_ais_srv_ctx.state);
+    g_ais_srv_ctx.p_conn = p_conn;
+    g_ais_srv_ctx.state = AIS_STATE_CONNECT;
+    _ais_timer_refresh();
 }
 
 static void _ais_ota_status_report(void)
@@ -255,52 +364,51 @@ static void _ais_ota_status_report(void)
     _ais_server_notify(0, AIS_OTA_STATUS, payload, 16);
 }
 
-static void _ais_ota_disconnect(uint8_t reason)
+static void _ais_ota_timer_cb(void *p_timer, void *args)
 {
-    BT_DBG("disconnect reason 0x%x", reason);
-    bt_conn_disconnect(g_ais_srv_ctx.p_conn, reason);
-    memset(&g_ais_srv_ctx.ota_info, 0, sizeof(g_ais_srv_ctx.ota_info));
-    g_ais_srv_ctx.auth = 0;
-    g_ais_srv_ctx.ota_process = 0;
-}
-
-static void _ais_ota_auth_timer_cb(void *p_timer, void *args)
-{
-    _ais_ota_disconnect(BT_HCI_ERR_AUTHENTICATION_FAIL);
-}
-
-static void _ais_ota_disconn_timer_cb(void *p_timer, void *args)
-{
-    _ais_ota_disconnect(BT_HCI_ERR_UNACCEPT_CONN_PARAM);
-}
-
-static void _ais_ota_report_timer_cb(void *p_timer, void *args)
-{
-    //BT_DBG_R("");
-    _ais_ota_status_report();
-    if(g_ais_srv_ctx.ota_info.err_count++ < 5) {
-        k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REPORT_TIMEOUT);
-    } else {
-        //TODO
-        BT_DBG_R("!!!!");
-        _ais_ota_disconnect(BT_HCI_ERR_UNACCEPT_CONN_PARAM);
+    BT_DBG_R(" %d", g_ais_srv_ctx.state);
+    switch(g_ais_srv_ctx.state) {
+        case AIS_STATE_CONNECT:
+            case AIS_STATE_IDLE:
+            g_ais_srv_ctx.state = AIS_STATE_DISCON;
+            break;
+        case AIS_STATE_AUTH:
+            genie_ais_reset();
+            g_ais_srv_ctx.state = AIS_STATE_CONNECT;
+            break;
+        case AIS_STATE_OTA:
+            //BT_DBG_R("");
+            if(g_ais_srv_ctx.ota_info.err_count++ >= 5) {
+                BT_DBG_R("OTA failed");
+                g_ais_srv_ctx.state = AIS_STATE_IDLE;
+                _ais_server_indicate(0, AIS_RESP_ERR, NULL, 0);
+            } else {
+                _ais_ota_status_report();
+            }
+            break;
+        case AIS_STATE_REBOOT:
+            if(g_ais_srv_ctx.ota_info.ota_flag != OTA_FLAG_SILENT || ota_check_reboot()) {
+                bt_conn_disconnect(g_ais_srv_ctx.p_conn, BT_HCI_ERR_SUCCESS);
+                //clear image change
+                genie_flash_delete_reliable(GFI_OTA_IMAGE_CHANGE);
+                dfu_reboot();
+            } else {
+                BT_DBG_R("silent");
+                g_ais_srv_ctx.state = AIS_STATE_IDLE;
+            }
+            break;
+        default:
+            break;
     }
+    _ais_timer_refresh();
 }
 
-static void _ais_ota_reboot_timer_cb(void *p_timer, void *args)
-{
-    BT_DBG_R("");
-    _ais_ota_disconnect(BT_HCI_ERR_SUCCESS);
-    dfu_reboot();
-}
-
-#ifdef CONFIG_AIS_AUTH
 static bool _ais_scrt_random(uint8_t msg_id, ais_scrt_random_t *p_scrt_random)
 {
     uint8_t cipher[16];
 
+    g_ais_srv_ctx.state = AIS_STATE_AUTH;
     genie_ais_get_cipher(p_scrt_random->random, cipher);
-    BT_DBG("msg_id %02x %02x", msg_id, AIS_SCRT_CIPHER);
     _ais_server_indicate(msg_id, AIS_SCRT_CIPHER, cipher, 16);
 
     return true;
@@ -312,10 +420,11 @@ static bool _ais_scrt_result(uint8_t msg_id, ais_scrt_result_t *p_scrt_result)
 
     if(p_scrt_result->result == 1) {
         genie_ais_reset();
-        g_ais_srv_ctx.disconnect = 1;
+        g_ais_srv_ctx.state = AIS_STATE_CONNECT;
     } else {
-        g_ais_srv_ctx.auth = 1;
+        g_ais_srv_ctx.state = AIS_STATE_IDLE;
     }
+
     _ais_server_indicate(msg_id, AIS_SCRT_ACK, &ack, 1);
 
     return true;
@@ -326,7 +435,8 @@ static bool _ais_link_ack(uint8_t msg_id, ais_scrt_result_t *p_scrt_result)
     uint8_t payload[16];
 
     if(p_scrt_result->result == 0) {
-        g_ais_srv_ctx.disconnect = 1;
+        genie_ais_reset();
+        g_ais_srv_ctx.state = AIS_STATE_CONNECT;
     }
     memset(payload, 0x0F, sizeof(payload));
     payload[0] = 1;
@@ -336,7 +446,6 @@ static bool _ais_link_ack(uint8_t msg_id, ais_scrt_result_t *p_scrt_result)
 
     return true;
 }
-#endif
 
 static bool _ais_ota_ver_req(uint8_t msg_id, ais_ota_ver_req_t *p_ver_req)
 {
@@ -347,22 +456,13 @@ static bool _ais_ota_ver_req(uint8_t msg_id, ais_ota_ver_req_t *p_ver_req)
         memset(payload, 11, sizeof(payload));
         p_ver_resp->image_type = 0;
         p_ver_resp->ver = PROJECT_SW_VERSION;
-        _ais_ota_encrypt(payload, 16);
 
-        _ais_server_notify(msg_id, AIS_OTA_VER_RESP, payload, 16);
-        return true;
-    }
-    return false;
-}
-
-static bool _ais_ota_start(ais_ota_upd_req_t *p_ota_req)
-{
-    if(g_ais_srv_ctx.ota_process == 0) {
-        g_ais_srv_ctx.ota_process = 1;
-        g_ais_srv_ctx.ota_info.image_type = p_ota_req->image_type;
-        g_ais_srv_ctx.ota_info.image_ver = p_ota_req->ver;
-        g_ais_srv_ctx.ota_info.image_size = p_ota_req->fw_size;
-        g_ais_srv_ctx.ota_info.image_crc16 = p_ota_req->crc16;
+        if(g_ais_srv_ctx.state == AIS_STATE_IDLE) {
+            _ais_ota_encrypt(payload, 16);
+            _ais_server_notify(msg_id, AIS_OTA_VER_RESP, payload, 16);
+        } else {
+            _ais_server_notify(msg_id, AIS_OTA_VER_RESP, payload, 5);
+        }
         return true;
     }
     return false;
@@ -377,16 +477,25 @@ static bool _ais_ota_upd_req(uint8_t msg_id, ais_ota_upd_req_t *p_ota_req)
     BT_DBG("ota_ver %08x size %d temp: %d", p_ota_req->ver, p_ota_req->fw_size, tmp_size);
 
     memset(payload, 10, sizeof(payload));
-    memset(&g_ais_srv_ctx.ota_info, 0, sizeof(g_ais_srv_ctx.ota_info));
     if (p_ota_req->image_type != 0 || p_ota_req->ver <= PROJECT_SW_VERSION ||
-        tmp_size < p_ota_req->fw_size || 0 == p_ota_req->fw_size ||
-        _ais_ota_start(p_ota_req) == false) {
+        tmp_size < p_ota_req->fw_size || 0 == p_ota_req->fw_size) {
         p_upd_resp->state = 0;
         p_upd_resp->rx_size = 0;
-        g_ais_srv_ctx.disconnect = 1;
     } else {
+        g_ais_srv_ctx.state = AIS_STATE_OTA;
+        memset(&g_ais_srv_ctx.ota_info, 0, sizeof(g_ais_srv_ctx.ota_info));
+        g_ais_srv_ctx.ota_info.image_type = p_ota_req->image_type;
+        g_ais_srv_ctx.ota_info.image_ver = p_ota_req->ver;
+        g_ais_srv_ctx.ota_info.image_size = p_ota_req->fw_size;
+        g_ais_srv_ctx.ota_info.image_crc16 = p_ota_req->crc16;
+        g_ais_srv_ctx.ota_info.ota_flag = p_ota_req->ota_flag;
         p_upd_resp->state = 1;
-        p_upd_resp->rx_size = 0;  //TODO duandianxuchuan   req:flag crc/resp:size
+        //TODO duandianxuchuan   req:flag crc/resp:size
+        p_upd_resp->rx_size = 0;
+#ifdef BOARD_TC825X
+        extern void bls_ota_clearNewFwDataArea(void);
+        bls_ota_clearNewFwDataArea();
+#endif
     }
     p_upd_resp->total_frame = CONFIG_AIS_TOTAL_FRAME - 1;
     _ais_ota_encrypt(payload, 16);
@@ -402,23 +511,27 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
     uint8_t *p_payload = p_msg->payload;
     uint16_t payload_len = p_msg->header.payload_len;
 
-    if(g_ais_srv_ctx.ota_process != 1 || g_ais_srv_ctx.disconnect == 1){
-        BT_ERR("ota process err");
+    if(p_msg->header.seq > p_msg->header.total_frame) {
+        BT_ERR("invalid");
         return false;
     }
 
-    if (p_msg->header.seq >= CONFIG_AIS_TOTAL_FRAME || p_msg->header.seq != g_ais_srv_ctx.ota_info.except_seq) {
-        BT_ERR("expected %d, rx %d", g_ais_srv_ctx.ota_info.except_seq, p_msg->header.seq);
-        //send fail
-        if(g_ais_srv_ctx.ota_info.err_count == 0) {
+    if (p_msg->header.seq != g_ais_srv_ctx.ota_info.except_seq) {
+        BT_DBG("expected %d, rx %d, len %d", g_ais_srv_ctx.ota_info.except_seq, p_msg->header.seq, p_msg->header.payload_len);
+        if(g_ais_srv_ctx.ota_info.err_count++ == 0) {
+            /* send fail */
             _ais_ota_status_report();
-            g_ais_srv_ctx.ota_info.err_count++;
-            k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REPORT_TIMEOUT);
+            /* refresh timer */
+            return true;
         }
-        return true;
+        return false;
     }
 
-    BT_DBG("expected %d, rx %d, len %d", g_ais_srv_ctx.ota_info.except_seq, p_msg->header.seq, p_msg->header.payload_len);
+    BT_DBG("b4:rx %d/%d", g_ais_srv_ctx.ota_info.rx_size, g_ais_srv_ctx.ota_info.image_size);
+    if(g_ais_srv_ctx.ota_info.rx_size + p_msg->header.payload_len > g_ais_srv_ctx.ota_info.image_size) {
+        BT_ERR("out of size, rx %d, recv %d", g_ais_srv_ctx.ota_info.rx_size, p_msg->header.payload_len);
+        return false;
+    }
 
     g_ais_srv_ctx.ota_info.err_count = 0;
 
@@ -457,74 +570,57 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
     g_ais_srv_ctx.ota_info.last_seq = p_msg->header.seq;
     g_ais_srv_ctx.ota_info.total_frame = p_msg->header.total_frame;
     g_ais_srv_ctx.ota_info.rx_size += p_msg->header.payload_len;
-    BT_DBG("rx_size %d", g_ais_srv_ctx.ota_info.rx_size);
+    BT_DBG("rx %d/%d", g_ais_srv_ctx.ota_info.rx_size, g_ais_srv_ctx.ota_info.image_size);
     if(p_msg->header.seq == p_msg->header.total_frame) {
         g_ais_srv_ctx.ota_info.except_seq = 0;
     } else {
         g_ais_srv_ctx.ota_info.except_seq = p_msg->header.seq + 1;
     }
 
-    if(g_ais_srv_ctx.ota_info.rx_size > g_ais_srv_ctx.ota_info.image_size) {
-        return false;
-    } else {
-        if(g_ais_srv_ctx.ota_info.rx_size == g_ais_srv_ctx.ota_info.image_size ||
-                p_msg->header.seq == p_msg->header.total_frame) {
-            _ais_ota_status_report();
-        }
-
-        /* restart frame timeout timer */
-        k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REPORT_TIMEOUT);
+    if(g_ais_srv_ctx.ota_info.rx_size == g_ais_srv_ctx.ota_info.image_size
+                        || p_msg->header.seq == p_msg->header.total_frame) {
+        _ais_ota_status_report();
     }
 
     return true;
 }
 
-static void _ais_ota_reboot(void)
-{
-    k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_reboot_timer_cb, NULL);
-    k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REBOOT_TIMEOUT);
-}
-
 static bool _ais_ota_check_req(uint8_t msg_id, ais_ota_check_req_t *p_check_req)
 {
+    g_ais_srv_ctx.state = AIS_STATE_IDLE;
+
     if(p_check_req->state == 1) {
         uint8_t payload[16];
         ais_ota_check_resp_t *p_check_resp = (ais_ota_check_resp_t *)payload;
 
         memset(payload, 15, sizeof(payload));
 
-        //TODO
-        p_check_resp->state = 1;//dfu_check_checksum(g_ais_srv_ctx.ota_info.image_type, &g_ais_srv_ctx.ota_info.crc16);
+        p_check_resp->state = dfu_check_checksum(g_ais_srv_ctx.ota_info.image_type, &g_ais_srv_ctx.ota_info.crc16);
+
+        if (p_check_resp->state) {
+            g_ais_srv_ctx.state = AIS_STATE_REBOOT;
+            _ais_set_ota_change();
+            BT_DBG("ota success, reboot in 3s!");
+        } else {
+            BT_DBG("ota failed");
+        }
 
         _ais_ota_encrypt(payload, 16);
-        
         _ais_server_notify(msg_id, AIS_OTA_CHECK_RESP, payload, 16);
-        if (p_check_resp->state) {
-            BT_DBG("ota success, reboot!");
-            _ais_ota_reboot();
-        }
-        return true;
-    }
-    return false;
-}
 
-static bool _ais_msg_check_auth(ais_header_t *p_msg_header)
-{
-#ifdef CONFIG_AIS_AUTH
-    //check auth
-    if(g_ais_srv_ctx.auth == 0 || p_msg_header->enc == 0) {
-        BT_DBG("auth err, g_auth %d, enc %d", g_ais_srv_ctx.auth, p_msg_header->enc);
+        return true;
+    } else {
         return false;
     }
-#endif
-    return true;
 }
 
 static bool _ais_msg_check_header(ais_header_t *p_msg_header)
 {
     //check seq & total, in ota case, the seq & total must be 0
-    if(p_msg_header->total_frame != 0 || p_msg_header->seq != 0 || p_msg_header->ver != 0 || p_msg_header->seq > p_msg_header->total_frame) {
-        BT_DBG("msg fail, total %d, seq %d, ver %d", p_msg_header->total_frame, p_msg_header->seq, p_msg_header->ver);
+    if(p_msg_header->total_frame != 0 || p_msg_header->seq != 0
+                            || p_msg_header->ver != 0
+                            || p_msg_header->seq > p_msg_header->total_frame) {
+        BT_DBG("fail %s", bt_hex(p_msg_header, sizeof(ais_header_t)));
         return false;
     }
     return true;
@@ -532,124 +628,85 @@ static bool _ais_msg_check_header(ais_header_t *p_msg_header)
 
 static void _ais_server_msg_handle(struct bt_conn *p_conn, ais_pdu_t *p_msg, uint16_t len)
 {
-    bool ret = false;
-    uint8_t len_vaild = 0;
+    bool timer_refresh = false;
 
     BT_DBG("cmd %02x", p_msg->header.cmd);
     BT_DBG("len %d: %s", len, bt_hex(p_msg, len));
 
-    if(g_ais_srv_ctx.disconnect == 1) {
-        BT_ERR("ota failed, wait to disconnect");
+    if(p_msg->header.cmd != AIS_OTA_DATA && !_ais_msg_check_header((ais_header_t *)p_msg)) {
+        BT_ERR("invalid msg, ignore");
     }
 
     switch (p_msg->header.cmd) {
-#ifdef CONFIG_AIS_AUTH
         case AIS_SCRT_RANDOM:
             //len = 4+16
-            len_vaild = 20;
-            memset(&g_ais_srv_ctx, 0, sizeof(g_ais_srv_ctx));
-            g_ais_srv_ctx.p_conn = p_conn;
-            if(_ais_msg_check_header((ais_header_t *)p_msg) && len == len_vaild) {
-                ret = _ais_scrt_random(p_msg->header.msg_id, (ais_scrt_random_t *)p_msg->payload);
-                BT_DBG_R("auth timer init");
-                k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_auth_timer_cb, NULL);
-                k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_AUTH_TIMEOUT);
+            if(len == 20 && (g_ais_srv_ctx.state == AIS_STATE_CONNECT
+                          || g_ais_srv_ctx.state == AIS_STATE_IDLE)) {
+                timer_refresh = _ais_scrt_random(p_msg->header.msg_id,
+                                        (ais_scrt_random_t *)p_msg->payload);
             }
-
             break;
 
         case AIS_SCRT_RESULT:
             //len = 4+1
-            len_vaild = 5;
-            if(_ais_msg_check_header((ais_header_t *)p_msg) && len == len_vaild) {
-                ret = _ais_scrt_result(p_msg->header.msg_id, (ais_scrt_result_t *)p_msg->payload);
-                if(g_ais_srv_ctx.disconnect == 0) {
-                    k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_AUTH_TIMEOUT);
-                }
+            if(len == 5 && g_ais_srv_ctx.state == AIS_STATE_AUTH) {
+                timer_refresh = _ais_scrt_result(p_msg->header.msg_id,
+                                        (ais_scrt_result_t *)p_msg->payload);
             }
             break;
+
         case AIS_LINK_STATUS:
             //len = 4+16
-            len_vaild = 20;
-            if(_ais_msg_check_header((ais_header_t *)p_msg) && _ais_msg_check_auth((ais_header_t *)p_msg) && len == len_vaild) {
+            if(len == 20 && g_ais_srv_ctx.state == AIS_STATE_IDLE) {
                 _ais_ota_decrypt(p_msg->payload, 16);
-                ret = _ais_link_ack(p_msg->header.msg_id, (ais_scrt_result_t *)p_msg->payload);
-                if(g_ais_srv_ctx.disconnect == 0) {
-                    k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_AUTH_TIMEOUT);
-                }
+                timer_refresh = _ais_link_ack(p_msg->header.msg_id,
+                                        (ais_scrt_result_t *)p_msg->payload);
             }
             break;
-#endif
+
         case AIS_OTA_VER_REQ:
-#ifdef CONFIG_AIS_AUTH
-            //len = 4+16
-            len_vaild = 20;
-#else
-            //len = 4+1
-            len_vaild = 5;
-#endif
-            if(_ais_msg_check_header((ais_header_t *)p_msg) && _ais_msg_check_auth((ais_header_t *)p_msg) && len == len_vaild) {
-                _ais_ota_decrypt(p_msg->payload, 16);
-                ret = _ais_ota_ver_req(p_msg->header.msg_id, (ais_ota_ver_req_t *)p_msg->payload);
-                if(ret == true && g_ais_srv_ctx.disconnect == 0) {
-                    BT_DBG_R("disconn timer init");
-                    k_timer_stop(&g_ais_srv_ctx.timer);
-                    k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_disconn_timer_cb, NULL);
-                    k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_DISCONN_TIMEOUT);
+            if((len == 20 && g_ais_srv_ctx.state == AIS_STATE_IDLE)
+             || (len == 5 && g_ais_srv_ctx.state == AIS_STATE_CONNECT)) {
+                if(g_ais_srv_ctx.state == AIS_STATE_IDLE) {
+                    _ais_ota_decrypt(p_msg->payload, 16);
                 }
+                timer_refresh = _ais_ota_ver_req(p_msg->header.msg_id,
+                                        (ais_ota_ver_req_t *)p_msg->payload);
             }
             break;
 
         case AIS_OTA_UPD_REQ:
-#ifdef CONFIG_AIS_AUTH
             //len = 4+16
-            len_vaild = 20;
-#else
-            //len = 4+12
-            len_vaild = 16;
-#endif
-            if(_ais_msg_check_header((ais_header_t *)p_msg) && _ais_msg_check_auth((ais_header_t *)p_msg) && len == len_vaild) {
+            if(len == 20 && g_ais_srv_ctx.state == AIS_STATE_IDLE) {
                 _ais_ota_decrypt(p_msg->payload, 16);
-                ret = _ais_ota_upd_req(p_msg->header.msg_id, (ais_ota_upd_req_t *)p_msg->payload);
-                if(g_ais_srv_ctx.disconnect == 0) {
-                    BT_DBG_R("ota timer init");
-                    k_timer_stop(&g_ais_srv_ctx.timer);
-                    k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_report_timer_cb, NULL);
-                    k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REPORT_TIMEOUT);
-                }
+                timer_refresh = _ais_ota_upd_req(p_msg->header.msg_id,
+                                        (ais_ota_upd_req_t *)p_msg->payload);
+            }
+            break;
+
+        case AIS_OTA_DATA:
+            if(len == sizeof(ais_header_t) + p_msg->header.payload_len
+                && p_msg->header.ver == 0 && g_ais_srv_ctx.state == AIS_STATE_OTA) {
+                timer_refresh = _ais_ota_data(p_msg);
             }
             break;
 
         case AIS_OTA_CHECK_REQ:
-#ifdef CONFIG_AIS_AUTH
-            //len = 4+16
-            len_vaild = 20;
-#else
-            //len = 4+1
-            len_vaild = 5;
-#endif
-            if(_ais_msg_check_header((ais_header_t *)p_msg) && _ais_msg_check_auth((ais_header_t *)p_msg) && len == len_vaild) {
+            if(len == 20 && g_ais_srv_ctx.state == AIS_STATE_OTA) {
                 _ais_ota_decrypt(p_msg->payload, 16);
-                k_timer_stop(&g_ais_srv_ctx.timer);
-                ret = _ais_ota_check_req(p_msg->header.msg_id, (ais_ota_check_req_t *)p_msg->payload);
+                timer_refresh = _ais_ota_check_req(p_msg->header.msg_id, (ais_ota_check_req_t *)p_msg->payload);
             }
             break;
-        case AIS_OTA_DATA:
-            len_vaild = sizeof(ais_header_t) + p_msg->header.payload_len;
-            if(p_msg->header.ver == 0 && len == len_vaild) {
-                ret = _ais_ota_data(p_msg);
-            }
-            break;
+
         default:
             break;
     }
     //BT_DBG("ret %d", ret);
-    if (false == ret) {
-        _ais_server_send_err(p_msg->header.msg_id);
-        if(g_ais_srv_ctx.disconnect == 0) {
-            k_timer_stop(&g_ais_srv_ctx.timer);
-            k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_disconn_timer_cb, NULL);
-            k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_DISCONN_TIMEOUT);
+    if (timer_refresh) {
+        _ais_timer_refresh();
+    } else {
+        if(g_ais_srv_ctx.state != AIS_STATE_OTA) {
+            _ais_server_indicate(p_msg->header.msg_id, AIS_RESP_ERR, NULL, 0);
         }
     }
 }
@@ -667,22 +724,10 @@ static ssize_t _ais_server_read(struct bt_conn *p_conn, const struct bt_gatt_att
 static ssize_t _ais_service_write(struct bt_conn *p_conn, const struct bt_gatt_attr *p_attr,
                                         const void *p_buf, u16_t len, u16_t offset, u8_t flags)
 {
-    u16_t value;
-
     //BT_DBG("len %d: %s", len, bt_hex(p_buf, len));
 
     if(len != 0) {
         _ais_server_msg_handle(p_conn, (ais_pdu_t *)p_buf, len);
-    }
-
-    if (len != sizeof(value)) {
-        return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
-    }
-
-    value = sys_get_le16(p_buf);
-    if (value != BT_GATT_CCC_NOTIFY) {
-        BT_WARN("Client wrote 0x%04x instead enabling notify", value);
-        return len;
     }
 
     return len;
@@ -755,7 +800,7 @@ struct bt_le_adv_param fast_adv_param = {
 int g_multiadv_instant_id;
 void bt_gatt_adv_init(void)
 {
-    printk("%s called\n", __FUNCTION__);
+    BT_DBG("");
 
 #ifdef CONFIG_BT_MESH_MULTIADV
     {
@@ -770,18 +815,23 @@ void bt_gatt_adv_init(void)
         }
     }
 #else
+#if 0
     k_thread_create(&gatt_adv_thread_data, gatt_adv_thread_stack,
         K_THREAD_STACK_SIZEOF(gatt_adv_thread_stack), ota_adv_thread,
         NULL, NULL, NULL, CONFIG_BT_MESH_ADV_PRIO, 0, K_NO_WAIT);
+#endif
 #endif
 }
 
 int ais_service_register(void)
 {
-    BT_DBG("");
+    BT_DBG_R("");
     bt_gatt_adv_init();
 
     bt_gatt_service_register(&_ais_srv);
+
+    memset(&g_ais_srv_ctx, 0, sizeof(g_ais_srv_ctx));
+    k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_timer_cb, NULL);
 
     return 0;
 }

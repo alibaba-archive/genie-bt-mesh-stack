@@ -124,7 +124,6 @@ NET_BUF_POOL_DEFINE(hci_cmd_pool, CONFIG_BT_HCI_CMD_COUNT,
 NET_BUF_POOL_DEFINE(hci_rx_pool, CONFIG_BT_RX_BUF_COUNT,
                     BT_BUF_RX_SIZE, BT_BUF_USER_DATA_MIN, NULL);
 
-static void process_cmd_done(struct net_buf *buf);
 static void send_cmd(struct net_buf *buf);
 
 #if defined(CONFIG_BT_HCI_ACL_FLOW_CONTROL)
@@ -1746,7 +1745,7 @@ static void hci_cmd_complete(struct net_buf *buf)
 {
     struct bt_hci_evt_cmd_complete *evt    = (void *)buf->data;
     u16_t                           opcode = sys_le16_to_cpu(evt->opcode);
-    u8_t                            status, ncmd = evt->ncmd;
+    u8_t                            status;
 
     BT_DBG("opcode 0x%04x", opcode);
 
@@ -2173,7 +2172,6 @@ static void read_le_features_complete(struct net_buf *buf)
 static void le_read_buffer_size_complete(struct net_buf *buf)
 {
     struct bt_hci_rp_le_read_buffer_size *rp = (void *)buf->data;
-    u16_t pkts;
 
     BT_DBG("%s, status %u", __func__, rp->status);
 
@@ -3179,7 +3177,6 @@ static int set_ad_data(u16_t hci_op, const uint8_t *ad_data, int ad_len)
 {
     struct bt_hci_cp_le_set_adv_data *set_data;
     struct net_buf *                  buf;
-    int                               i;
 
     buf = bt_hci_cmd_create(hci_op, sizeof(*set_data));
     if (!buf) {
