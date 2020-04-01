@@ -115,7 +115,6 @@ typedef struct {
 typedef struct {
     uint8_t err_count;
 
-    uint16_t crc16;
     uint8_t last_seq;
     uint8_t total_frame;
     uint8_t except_seq;
@@ -179,6 +178,7 @@ void ais_clear_ota_indicat(void)
 
 void ais_check_ota_change(void)
 {
+#ifdef CONFIG_GENIE_OTA_PINGPONG
     uint32_t ota_change = 0xFFFFFFFF;
     uint8_t ota_image = DFU_IMAGE_ERR;
     E_GENIE_FLASH_ERRCODE ret;
@@ -197,16 +197,20 @@ void ais_check_ota_change(void)
         BT_DBG("del change %d", ota_image);
         genie_flash_delete_reliable(GFI_OTA_IMAGE_CHANGE);
     }
+#else
+    genie_flash_delete_reliable(GFI_OTA_IMAGE_CHANGE);
+#endif
 }
 
 static void _ais_set_ota_change(void)
 {
-    uint32_t ota_change = 0xA5A5A500;
-    uint8_t ota_image = DFU_IMAGE_TOTAL - get_program_image();
     uint8_t ota_indicat = 1;
 
     genie_flash_write_userdata(GFI_OTA_INDICAT, &ota_indicat, sizeof(ota_indicat));
 
+#ifdef CONFIG_GENIE_OTA_PINGPONG
+    uint32_t ota_change = 0xA5A5A500;
+    uint8_t ota_image = DFU_IMAGE_TOTAL - get_program_image();
     if(ota_image < DFU_IMAGE_ERR) {
         ota_change |= ota_image;
         BT_DBG("switch to %d", ota_image);
@@ -214,6 +218,10 @@ static void _ais_set_ota_change(void)
     } else {
         BT_ERR("image err");
     }
+#else
+    uint32_t ota_change = 0xA5A5A501;
+    genie_flash_write_reliable(GFI_OTA_IMAGE_CHANGE, (uint8_t *)&ota_change, sizeof(ota_change));
+#endif
 }
 
 static void _ais_ota_encrypt(uint8_t *payload, uint8_t len)
@@ -591,11 +599,19 @@ static bool _ais_ota_check_req(uint8_t msg_id, ais_ota_check_req_t *p_check_req)
 
     if(p_check_req->state == 1) {
         uint8_t payload[16];
+        uint16_t crc16;
         ais_ota_check_resp_t *p_check_resp = (ais_ota_check_resp_t *)payload;
 
         memset(payload, 15, sizeof(payload));
 
-        p_check_resp->state = dfu_check_checksum(g_ais_srv_ctx.ota_info.image_type, &g_ais_srv_ctx.ota_info.crc16);
+        p_check_resp->state = dfu_check_checksum(g_ais_srv_ctx.ota_info.image_type, &crc16);
+
+
+        BT_DBG("check %d %04x %04x", p_check_resp->state, g_ais_srv_ctx.ota_info.image_crc16, crc16);
+        if(p_check_resp->state && crc16 != g_ais_srv_ctx.ota_info.image_crc16){
+            p_check_resp->state = 0;
+            BT_DBG_R("crc error");
+        }
 
         if (p_check_resp->state) {
             g_ais_srv_ctx.state = AIS_STATE_REBOOT;

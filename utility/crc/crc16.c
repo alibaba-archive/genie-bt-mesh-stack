@@ -58,4 +58,27 @@ uint16_t util_crc16_compute(uint8_t const * p_data, uint32_t size, uint16_t cons
 
     return crc;
 }
+
+uint16_t util_crc16_ccitt(uint8_t const * p_data, uint32_t size, uint16_t const * p_crc)
+{
+    uint16_t crc = (p_crc == NULL) ? 0xFFFF : *p_crc;
+    static uint8_t b = 0;
+
+    if(p_crc == NULL) {
+        b = 0;
+    }
+
+    for (uint32_t i = 0; i < size; i++) {
+        for (uint8_t j = 0; j < 8; j++) {
+            b = ((p_data[i] << j) & 0x80) ^ ((crc & 0x8000) >> 8);
+            crc <<= 1;
+            if(b != 0) {
+                crc ^= 0x1021;
+            }
+        }
+    }
+
+    return crc;
+}
+
 //#endif //NRF_MODULE_ENABLED(CRC16)

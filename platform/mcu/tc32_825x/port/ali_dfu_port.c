@@ -175,6 +175,16 @@ void unlock_flash_all()
     hal_flash_dis_secure(HAL_PARTITION_OTA_TEMP, 0, 0);
 }
 
+typedef struct {
+	unsigned int write_len;
+	unsigned int checked_len;
+	unsigned int checksum;
+	unsigned short crc16;
+} fw_check_status_t;
+static fw_check_status_t fw_check_status;
+
+uint16_t util_crc16_ccitt(uint8_t const * p_data, uint32_t size, uint16_t const * p_crc);
+
 /**
  * @brief 镜像更新
  * 
@@ -195,7 +205,7 @@ int ali_dfu_image_update(short signature, int offset, int length, int/*void*/ *b
 		printf("The write range is over OTA temporary!\r\n");
 		return -1;
 	}
-    printf("offset=%d,len=%d\n", offset, length);
+    //printf("offset=%d,len=%d\n", offset, length);
 
 	unsigned char *p_c = (unsigned char *)buf;
    	if (offset <= 0x08 && (offset+length) > 0x08) {
@@ -216,6 +226,33 @@ int ali_dfu_image_update(short signature, int offset, int length, int/*void*/ *b
 		i += check_len;
 	}
 
+	if (offset == 0){
+		fw_check_status.write_len = 0;
+		fw_check_status.checked_len = 0;
+		fw_check_status.checksum = 0;
+		if (offset <= 0x08 && (offset+length) > 0x08) {
+			p_c[0x08 - offset] = 0x4B;
+	   	}
+		fw_check_status.crc16 = util_crc16_ccitt(p_c, length, NULL);
+	}else{
+		fw_check_status.crc16 = util_crc16_ccitt(p_c, length, &fw_check_status.crc16);
+	}
+
+	if (offset == fw_check_status.write_len){
+		fw_check_status.write_len += length;
+		while (fw_check_status.write_len - fw_check_status.checked_len >= 16){
+			int check_len = (fw_check_status.write_len - fw_check_status.checked_len)/16*16;
+			if (check_len > sizeof(check_buf)){
+				check_len = sizeof(check_buf);
+			}
+			flash_read_page(ota_program_offset + fw_check_status.checked_len, check_len, check_buf);
+			if (fw_check_status.checked_len == 0){
+				check_buf[8] = 0x4B;
+			}
+			fw_check_status.checksum += get_blk_crc_tlk_type1(check_buf, check_len, fw_check_status.checked_len);
+			fw_check_status.checked_len += check_len;
+		}
+	}
 	return 0;
 }
 
@@ -229,8 +266,24 @@ int ali_dfu_image_update(short signature, int offset, int length, int/*void*/ *b
  */
 bool dfu_check_checksum(short image_id, unsigned short *crc16_output)
 {
-    printf("%s called\n", __FUNCTION__);
-    return is_valid_ota_calibrate_val(); // return true;
+#if 0
+	printf("%s called\n", __FUNCTION__);
+	return is_valid_ota_calibrate_val(); // return true;
+#else
+	unsigned int fw_size = get_fw_len();
+	if ((fw_check_status.checked_len+15)/16*16+4 != fw_size){
+		return false;
+	}
+	if (crc16_output != NULL){
+		*crc16_output = fw_check_status.crc16;
+	}
+	unsigned int fw_crc;
+	flash_read_page(ota_program_offset + fw_size - 4, 4, &fw_crc);
+	if (fw_crc != fw_check_status.checksum){
+		return false;
+	}
+	return true;
+#endif
 }
 
 /**
@@ -249,6 +302,7 @@ void dfu_reboot()
 	hal_reboot();
 }
 
+#ifdef CONFIG_GENIE_OTA_PINGPONG
 uint8_t get_program_image(void)
 {
 	return (ota_program_offset == 0) ? DFU_IMAGE_B : DFU_IMAGE_A;
@@ -270,5 +324,6 @@ uint8_t change_program_image(uint8_t dfu_image)
 	}
 	return dfu_image;
 }
+#endif
 
 

@@ -103,7 +103,7 @@
  * range 73 to 2000
  */
 #ifndef CONFIG_BT_RX_BUF_LEN
-#define CONFIG_BT_RX_BUF_LEN 151
+#define CONFIG_BT_RX_BUF_LEN 128
 #endif
 
 /**
@@ -151,7 +151,7 @@
  */
 #ifndef CONFIG_BT_L2CAP_TX_MTU
 #ifdef CONFIG_BT_SMP
-#define CONFIG_BT_L2CAP_TX_MTU 143
+#define CONFIG_BT_L2CAP_TX_MTU 128
 #else
 #define CONFIG_BT_L2CAP_TX_MTU 23
 #endif

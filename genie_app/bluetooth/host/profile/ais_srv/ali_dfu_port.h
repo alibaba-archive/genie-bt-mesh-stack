@@ -55,6 +55,7 @@ extern unsigned char dfu_check_checksum(short image_id, unsigned short *crc16_ou
  */
 extern int ali_dfu_image_update(short signature, int offset, int length, int *p_void);
 
+#ifdef CONFIG_GENIE_OTA_PINGPONG
 /**
  * @brief get the current runing partition.
  * @return the current runing partition.
@@ -67,6 +68,6 @@ extern uint8_t get_program_image(void);
  * @return the runing partition when next boot.
  */
 extern uint8_t change_program_image(uint8_t dfu_image);
-
+#endif
 
 #endif

@@ -38,10 +38,24 @@ GLOBAL_DEFINES += CONFIG_GENIE_RESET_BY_REPEAT
 
 ####### ota config #######
 GENIE_OTA = 1
+
 ifeq ($(GENIE_OTA),1)
-$(NAME)_SOURCES  += bluetooth/host/profile/ais_srv/ais_service.c
-endif
+
 GLOBAL_DEFINES += CONFIG_GENIE_OTA
+
+$(NAME)_SOURCES  += bluetooth/host/profile/ais_srv/ais_service.c
+
+ifeq ($(HOST_ARCH), tc32)
+GLOBAL_DEFINES += CONFIG_GENIE_OTA_PINGPONG
+endif
+
+endif
+
+
+####### bt config #######
+GLOBAL_DEFINES += CONFIG_BT_L2CAP_TX_MTU=143
+GLOBAL_DEFINES += CONFIG_BT_RX_BUF_LEN=151
+
 
 ####### model config #######
 

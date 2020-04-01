@@ -28,3 +28,4 @@ void bt_mesh_prov_reset(void);
 const struct bt_mesh_prov *bt_mesh_prov_get(void);
 
 #endif
+

@@ -111,10 +111,8 @@ static E_GENIE_EVENT _genie_event_handle_hw_reset_done(void)
     //BT_DBG("reset mesh done");
     genie_flash_reset_system();
     //BT_DBG("reset flash done");
-    //bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
-    //next_event = GENIE_EVT_SDK_MESH_PBADV_START;
-
-    return GENIE_EVT_HW_RESET_DONE;
+    bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
+    return GENIE_EVT_SDK_MESH_PBADV_START;
 }
 
 static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
@@ -122,6 +120,8 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
     //check provsioning status
     uint16_t addr;
     uint32_t seq;
+
+    ais_check_ota_change();
 
     print_sw_info();
 
