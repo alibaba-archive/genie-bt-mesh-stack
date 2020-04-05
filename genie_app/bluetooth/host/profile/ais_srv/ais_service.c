@@ -8,7 +8,7 @@
 #include "multi_adv.h"
 #include "ali_dfu_port.h"
 
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_OTA)
+#define BT_DBG_ENABLED 1//IS_ENABLED(CONFIG_BT_MESH_DEBUG_OTA)
 #include "common/log.h"
 
 #define AIS_OTA_AUTH_TIMEOUT 10000      //10s
@@ -158,6 +158,7 @@ static struct bt_gatt_ccc_cfg ais_ic_ccc_cfg[BT_GATT_CCC_MAX] = {};
 static struct bt_gatt_ccc_cfg ais_nc_ccc_cfg[BT_GATT_CCC_MAX] = {};
 static struct bt_gatt_attr _ais_srv_attrs[];
 static struct bt_gatt_indicate_params *p_indicate = NULL;
+static uint8_t g_ais_conn = 0;
 
 extern bool ota_check_reboot(void);
 
@@ -315,17 +316,24 @@ static void _ais_server_notify(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, uint
 
 void ais_ota_disconnect(uint8_t reason)
 {
+    g_ais_conn = 0;
     if(g_ais_srv_ctx.state != AIS_STATE_REBOOT) {
         BT_DBG("disconnect reason 0x%x", reason);
         k_timer_stop(&g_ais_srv_ctx.timer);
         bt_conn_disconnect(g_ais_srv_ctx.p_conn, reason);
         g_ais_srv_ctx.state = AIS_STATE_DISCON;
+        /* restart adv */
+        genie_event(GENIE_EVT_SDK_AIS_DISCON, NULL);
     }
 }
 
 static void _ais_timer_refresh(void)
 {
     BT_DBG_R(" %d", g_ais_srv_ctx.state);
+    if(!g_ais_conn) {
+        BT_DBG_R("connect from proxy, ignore");
+        return;
+    }
     switch(g_ais_srv_ctx.state) {
         case AIS_STATE_DISCON:
             ais_ota_disconnect(BT_HCI_ERR_UNACCEPT_CONN_PARAM);
@@ -502,7 +510,7 @@ static bool _ais_ota_upd_req(uint8_t msg_id, ais_ota_upd_req_t *p_ota_req)
         p_upd_resp->rx_size = 0;
 #ifdef BOARD_TC825X
         extern void bls_ota_clearNewFwDataArea(void);
-        bls_ota_clearNewFwDataArea();
+        //bls_ota_clearNewFwDataArea();
 #endif
     }
     p_upd_resp->total_frame = CONFIG_AIS_TOTAL_FRAME - 1;
@@ -758,6 +766,9 @@ static ssize_t _ais_service_write_nr(struct bt_conn *p_conn, const struct bt_gat
 
 static void _ais_service_ccc_cfg_changed(const struct bt_gatt_attr *p_attr, uint16_t value)
 {
+    if(value) {
+        g_ais_conn = 1;
+    }
     BT_DBG("value %d", value);
 }
 

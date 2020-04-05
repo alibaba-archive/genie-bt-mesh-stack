@@ -185,6 +185,13 @@ static void _led_set(uint8_t elem_index, uint8_t on)
 }
 #endif
 
+#ifdef CONFIG_GENIE_OTA
+bool ota_check_reboot(void)
+{
+    return true;
+}
+#endif
+
 void user_event(E_GENIE_EVENT event, void *p_arg)
 {
     E_GENIE_EVENT next_event = event;

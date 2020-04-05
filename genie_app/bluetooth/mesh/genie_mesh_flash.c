@@ -45,6 +45,16 @@ E_GENIE_FLASH_ERRCODE genie_flash_read_addr(uint16_t *p_addr)
     return genie_flash_read_reliable(GFI_MESH_SADDR, (uint8_t *)p_addr, 2);
 }
 
+E_GENIE_FLASH_ERRCODE genie_flash_write_hb(mesh_hb_para_t *p_para)
+{
+    return genie_flash_write_reliable(GFI_MESH_HB, (uint8_t *)p_para, sizeof(mesh_hb_para_t));
+}
+
+E_GENIE_FLASH_ERRCODE genie_flash_read_hb(mesh_hb_para_t *p_para)
+{
+    return genie_flash_read_reliable(GFI_MESH_HB, (uint8_t *)p_para, sizeof(mesh_hb_para_t));
+}
+
 E_GENIE_FLASH_ERRCODE genie_flash_reset_system(void)
 {
     E_GENIE_FLASH_ERRCODE ret;

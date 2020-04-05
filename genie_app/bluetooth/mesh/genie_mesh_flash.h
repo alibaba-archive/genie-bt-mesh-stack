@@ -7,6 +7,15 @@
 
 #include <genie_app.h>
 
+typedef struct{
+    uint16_t dst;
+    uint8_t count;
+    uint8_t  period;
+    uint8_t  ttl;
+    uint16_t feat;
+    uint16_t net_idx;
+} mesh_hb_para_t;
+
 E_GENIE_FLASH_ERRCODE genie_flash_write_trituple(uint32_t *p_pid, uint8_t *p_mac,  uint8_t *p_key);
 E_GENIE_FLASH_ERRCODE genie_flash_read_trituple(uint32_t *p_pid, uint8_t *p_mac,  uint8_t *p_key);
 
@@ -51,6 +60,20 @@ E_GENIE_FLASH_ERRCODE genie_flash_write_addr(uint16_t *p_addr);
  * @return the status of operation, 0 means successed.
  */
 E_GENIE_FLASH_ERRCODE genie_flash_read_addr(uint16_t *p_addr);
+
+/**
+ * @brief write the heartbeat parameters to flash
+ * @param[in] p_para: heartbeat parameters
+ * @return the status of operation, 0 means successed.
+ */
+E_GENIE_FLASH_ERRCODE genie_flash_write_hb(mesh_hb_para_t *p_para);
+
+/**
+ * @brief read the heartbeat parameters from flash
+ * @param[out] p_para: heartbeat parameters
+ * @return the status of operation, 0 means successed.
+ */
+E_GENIE_FLASH_ERRCODE genie_flash_read_hb(mesh_hb_para_t *p_para);
 
 /**
  * @brief save the factory status to flash

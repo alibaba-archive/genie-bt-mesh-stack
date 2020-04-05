@@ -58,10 +58,12 @@ const char *genie_event_str[] = {
     "SDK->NETKEY_UPDATE",
     "SDK->SUB_ADD",
     "SDK->SUB_DEL",
+    "SDK->HB_SET",
     "SDK->SEQ_UPDATE",
     "SDK->STATE_SYNC",
 
     "SDK->ANALYZE_MSG",
+    "SDK->AIS_DISCON",
 #ifdef CONFIG_MESH_MODEL_TRANS
     "SDK->DELAY_START",
     "SDK->DELAY_END",
@@ -81,9 +83,16 @@ const char *genie_event_str[] = {
 
 #define GENIE_MESH_EVENT_PRINT(id) BT_DBG(F_YELLOW "%s" F_END, genie_event_str[id])
 
+static void _genie_reset_prov(void)
+{
+    /* reset prov */
+    bt_mesh_reset();
+    genie_flash_reset_system();
+}
+
 static E_GENIE_EVENT _genie_event_handle_sw_reset(void)
 {
-    genie_flash_reset_system();
+    _genie_reset_prov();
     bt_mesh_adv_stop();
     bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
 
@@ -106,11 +115,8 @@ static E_GENIE_EVENT _genie_event_handle_hw_reset_start(void)
 static E_GENIE_EVENT _genie_event_handle_hw_reset_done(void)
 {
     genie_reset_clean_count();
-    //restart adv
-    bt_mesh_reset();
-    //BT_DBG("reset mesh done");
-    genie_flash_reset_system();
-    //BT_DBG("reset flash done");
+    _genie_reset_prov();
+    /* restart adv */
     bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
     return GENIE_EVT_SDK_MESH_PBADV_START;
 }
@@ -134,11 +140,26 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
             ais_service_register();
             printk(F_GREEN ">>>proved<<<\n" F_END);
 
+            {
+                /* check hb */
+                mesh_hb_para_t hb_para = {.count = 0};
+                genie_flash_read_hb(&hb_para);
+                printk(F_GREEN "HB %x\n" F_END, hb_para.count);
+                if(hb_para.count == 0xFF) {
+                    extern u8_t genie_heartbeat_set(mesh_hb_para_t *p_para);
+                    genie_heartbeat_set(&hb_para);
+                }
+            }
+
             if (!genie_reset_get_flag()) {
 #ifdef CONFIG_MESH_MODEL_VENDOR_SRV
                 poweron_indicate_start();
 #endif
             }
+        }else {
+            /* malloc fail, reset and reboot */
+            genie_flash_reset_system();
+            aos_reboot();
         }
     } else {
         if(!g_prov_enable) {
@@ -224,11 +245,12 @@ static E_GENIE_EVENT _genie_event_handle_sync(void)
 
 static E_GENIE_EVENT _genie_event_handle_prov_fail(void)
 {
+    /* reset prov */
     g_in_prov = 0;
-    /* clean prov data */
-    /* restart adv timer */
-    genie_pbadv_timer_start();
-    return GENIE_EVT_SDK_MESH_PROV_FAIL;
+    _genie_reset_prov();
+    /* restart adv */
+    bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
+    return GENIE_EVT_SDK_MESH_PBADV_START;
 }
 
 static void _genie_event_save_mesh_data(uint8_t *p_status)
@@ -262,6 +284,13 @@ static E_GENIE_EVENT _genie_event_handle_sub_add(void)
     return GENIE_EVT_SDK_SUB_ADD;
 }
 
+static E_GENIE_EVENT _genie_event_handle_hb_set(mesh_hb_para_t *p_para)
+{
+    BT_DBG("save");
+    genie_flash_write_hb(p_para);
+    return GENIE_EVT_SDK_HB_SET;
+}
+
 static E_GENIE_EVENT _genie_event_handle_seq_update(void)
 {
     uint32_t seq = bt_mesh.seq;
@@ -281,6 +310,13 @@ static E_GENIE_EVENT _genie_event_handle_analyze_msg(elem_state_t *p_elem)
     }
 #endif
     return GENIE_EVT_SDK_ACTION_DONE;
+}
+
+static E_GENIE_EVENT _genie_event_handle_ais_discon(elem_state_t *p_elem)
+{
+    /* restart adv */
+    bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
+    return GENIE_EVT_SDK_MESH_PBADV_START;
 }
 
 #ifdef CONFIG_MESH_MODEL_TRANS
@@ -493,12 +529,20 @@ void genie_event(E_GENIE_EVENT event, void *p_arg)
         case GENIE_EVT_SDK_SUB_DEL:
             break;
 
+        case GENIE_EVT_SDK_HB_SET:
+            next_event = _genie_event_handle_hb_set((mesh_hb_para_t *)p_arg);
+            break;
+
         case GENIE_EVT_SDK_SEQ_UPDATE:
             next_event = _genie_event_handle_seq_update();
             break;
 
         case GENIE_EVT_SDK_ANALYZE_MSG:
             next_event = _genie_event_handle_analyze_msg((elem_state_t *)p_arg);
+            break;
+
+        case GENIE_EVT_SDK_AIS_DISCON:
+            next_event = _genie_event_handle_ais_discon((elem_state_t *)p_arg);
             break;
 
 #ifdef CONFIG_MESH_MODEL_TRANS

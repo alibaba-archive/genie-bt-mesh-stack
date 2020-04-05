@@ -411,7 +411,7 @@ void user_init_normal(void)
 	bls_pm_setSuspendMask (SUSPEND_DISABLE);
 #endif
 
-#if 0 // (BLE_OTA_ENABLE)
+#if 1 // (BLE_OTA_ENABLE)
 	// OTA init
 	bls_ota_clearNewFwDataArea(); //must
 	//bls_ota_registerStartCmdCb(entry_ota_mode);

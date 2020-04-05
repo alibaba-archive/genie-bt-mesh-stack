@@ -62,7 +62,7 @@ uint16_t util_crc16_compute(uint8_t const * p_data, uint32_t size, uint16_t cons
 uint16_t util_crc16_ccitt(uint8_t const * p_data, uint32_t size, uint16_t const * p_crc)
 {
     uint16_t crc = (p_crc == NULL) ? 0xFFFF : *p_crc;
-    static uint8_t b = 0;
+    uint8_t b = 0;
 
     if(p_crc == NULL) {
         b = 0;

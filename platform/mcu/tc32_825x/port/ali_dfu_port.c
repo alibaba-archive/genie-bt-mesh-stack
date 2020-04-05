@@ -84,6 +84,7 @@ int is_valid_ota_check_type1()
 	unsigned int len = get_fw_len();
 	mesh_ota_read_data(len - 4, 4, (unsigned char *)&crc_org);
 
+    unsigned char irq = tlk_irq_disable();
     unsigned char buf[2 + OTA_DATA_LEN_1];
     unsigned int num = (len - 4 + (OTA_DATA_LEN_1 - 1))/OTA_DATA_LEN_1;
 	unsigned int crc_new = 0;
@@ -103,6 +104,7 @@ int is_valid_ota_check_type1()
 			#endif
         }
     }
+    tlk_irq_resrote(irq);
     
     return (crc_org == crc_new);
 }

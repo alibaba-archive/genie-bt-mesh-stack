@@ -13,6 +13,7 @@
 #include <mesh/cfg_srv.h>
 #include <mesh/health_srv.h>
 #include "mesh_model/inc/vendor_model.h"
+#include "bluetooth/mesh/genie_mesh_flash.h"
 
 #define CONFIG_CID_TAOBAO            0x01A8
 
@@ -262,8 +263,6 @@ u16_t genie_indicate_hw_reset_event (void);
 uint8_t elem_state_init(uint8_t state_count, elem_state_t *p_elem);
 void standart_indication(elem_state_t *p_elem);
 void genie_sub_list_init(void);
-
-#include "bluetooth/mesh/genie_mesh_flash.h"
 
 #ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
 #include "bluetooth/mesh/mesh_model/inc/gen_onoff_srv.h"
