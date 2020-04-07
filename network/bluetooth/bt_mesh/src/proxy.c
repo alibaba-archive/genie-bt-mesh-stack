@@ -58,8 +58,8 @@ static const struct bt_mesh_le_adv_param slow_adv_param = {
 
 static const struct bt_mesh_le_adv_param fast_adv_param = {
     .options = (BT_MESH_LE_ADV_OPT_CONNECTABLE | BT_MESH_LE_ADV_OPT_ONE_TIME),
-    .interval_min = BT_MESH_GAP_ADV_FAST_INT_MIN_1,
-    .interval_max = BT_MESH_GAP_ADV_FAST_INT_MAX_1,
+    .interval_min = BT_MESH_GAP_ADV_FAST_INT_MIN_2,
+    .interval_max = BT_MESH_GAP_ADV_FAST_INT_MAX_2,
 };
 
 static bool proxy_adv_enabled;
@@ -960,7 +960,7 @@ static u8_t prov_svc_data[20] = { 0x27, 0x18, };
 
 static const struct bt_mesh_data prov_ad[] = {
     BT_MESH_DATA_BYTES(BT_MESH_DATA_FLAGS, (BT_MESH_LE_AD_GENERAL | BT_MESH_LE_AD_NO_BREDR)),
-    BT_MESH_DATA_BYTES(BT_MESH_DATA_UUID16_ALL, 0x27, 0x18),
+    BT_MESH_DATA_BYTES(BT_MESH_DATA_UUID16_SOME, 0x27, 0x18),
     BT_MESH_DATA(BT_MESH_DATA_SVC_DATA16, prov_svc_data, sizeof(prov_svc_data)),
 };
 
