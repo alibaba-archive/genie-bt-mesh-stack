@@ -150,6 +150,9 @@ typedef struct {
     struct bt_conn *p_conn;
     k_timer_t timer;
     ota_info_t ota_info;
+#if defined(BOARD_CH6121EVB)
+    uint8_t flash_clean:1;
+#endif
 } ais_srv_ctx_t;
 
 static ais_srv_ctx_t g_ais_srv_ctx; 
@@ -308,7 +311,7 @@ static void _ais_server_notify(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, uint
     if(p_msg) {
         memcpy(msg.payload, p_msg, len);
     }
-    
+
     BT_DBG("len %d: %s", len+4, bt_hex(&msg, len+4));
 
     bt_gatt_notify(g_ais_srv_ctx.p_conn, &_ais_srv_attrs[11], &msg, len+4);
@@ -322,6 +325,13 @@ void ais_ota_disconnect(uint8_t reason)
         k_timer_stop(&g_ais_srv_ctx.timer);
         bt_conn_disconnect(g_ais_srv_ctx.p_conn, reason);
         g_ais_srv_ctx.state = AIS_STATE_DISCON;
+#if defined(BOARD_CH6121EVB)
+        /* Flash is dirty, need erase */
+        if (g_ais_srv_ctx.flash_clean == 0) {
+            erase_dfu_flash();
+            g_ais_srv_ctx.flash_clean = 1;
+        }
+#endif
         /* restart adv */
         genie_event(GENIE_EVT_SDK_AIS_DISCON, NULL);
     }
@@ -557,6 +567,9 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
 
         //BT_DBG_R("save 4B.2 %d", 4 - g_ais_srv_ctx.ota_info.len_4B);
         unlock_flash_all();
+#if defined(BOARD_CH6121EVB)
+        g_ais_srv_ctx.flash_clean = 0;
+#endif
         ali_dfu_image_update(g_ais_srv_ctx.ota_info.image_type,
                        g_ais_srv_ctx.ota_info.rx_size - g_ais_srv_ctx.ota_info.len_4B, 4,
                        (int *)g_ais_srv_ctx.ota_info.data_4B);
@@ -572,6 +585,9 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
     if (payload_len) {
         //BT_DBG_R("save %d", payload_len);
         unlock_flash_all();
+#if defined(BOARD_CH6121EVB)
+        g_ais_srv_ctx.flash_clean = 0;
+#endif
         ali_dfu_image_update(g_ais_srv_ctx.ota_info.image_type,
                         g_ais_srv_ctx.ota_info.rx_size + offset, payload_len,
                         (int *)p_payload);
@@ -860,6 +876,10 @@ int ais_service_register(void)
     memset(&g_ais_srv_ctx, 0, sizeof(g_ais_srv_ctx));
     k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_timer_cb, NULL);
 
+#if defined(BOARD_CH6121EVB)
+    erase_dfu_flash();
+    g_ais_srv_ctx.flash_clean = 1;
+#endif
     return 0;
 }
 

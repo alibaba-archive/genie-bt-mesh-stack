@@ -24,6 +24,16 @@
 extern "C" {
 #endif
 
+struct bt_cmac_t {
+  uint8_t iv[16];
+  uint8_t K1[16];
+  uint8_t K2[16];
+  uint8_t leftover[16];
+  unsigned int keyid;
+  unsigned int leftover_offset;
+  uint8_t aes_key[16];
+  uint64_t countdown;
+};
 /** @brief Generate random data.
  *
  *  A random number generation helper which utilizes the Bluetooth

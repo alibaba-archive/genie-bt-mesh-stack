@@ -97,6 +97,15 @@
 #define CW_TEMP_MAX            (0x4E20)    // 20000
 #endif
 
+#ifdef BOARD_CH6121EVB
+#define LIGHT_DBG(fmt, ...)  printf(fmt"\n", ##__VA_ARGS__)
+#define  LIGHT_LEVEL_UP  20
+#define  LIGHT_DRIVE_TYPE OUTPUT_PUSH_PULL
+#define  LIGHT_LEVEL_DOWN 24
+#define  LIGHT_DRIVE_TYPE OUTPUT_PUSH_PULL
+#define CW_TEMP_MIN            (0x0320)    // 800
+#define CW_TEMP_MAX            (0x4E20)    // 20000
+#endif
 #define MESH_ELEM_COUNT 1
 #define MESH_ELEM_STATE_COUNT MESH_ELEM_COUNT
 
@@ -121,6 +130,7 @@ typedef struct{
     uint16_t pwm[2];
 }cw_table_t;
 
+#if defined(BOARD_TC825X)
 static const cw_table_t lsd_cw_table[] = {
     {2700,{0,65535}},
     {2800,{1724,63810}},
@@ -161,7 +171,51 @@ static const cw_table_t lsd_cw_table[] = {
     {6300,{62085,3449}},
     {6400,{63810,1724}},
     {6500,{65535,0}},
+
+#elif defined(BOARD_CH6121EVB)
+
+static const cw_table_t lsd_cw_table[] = {
+    {2700,{0,100}},
+    {2800,{3,97}},
+    {2900,{6,94}},
+    {3000,{8,92}},
+    {3100,{10,90}},
+    {3200,{13,87}},
+    {3300,{16,84}},
+    {3400,{19,81}},
+    {3500,{22,78}},
+    {3600,{24,76}},
+    {3700,{27,73}},
+    {3800,{29,71}},
+    {3900,{31,69}},
+    {4000,{34,66}},
+    {4100,{36,64}},
+    {4200,{38,62}},
+    {4300,{41,59}},
+    {4400,{44,56}},
+    {4500,{47,53}},
+    {4600,{49,51}},
+    {4700,{52,48}},
+    {4800,{54,46}},
+    {4900,{57,43}},
+    {5000,{60,40}},
+    {5100,{63,37}},
+    {5200,{66,34}},
+    {5300,{69,31}},
+    {5400,{71,29}},
+    {5500,{74,26}},
+    {5600,{76,24}},
+    {5700,{79,21}},
+    {5800,{81,19}},
+    {5900,{83,17}},
+    {6000,{85,15}},
+    {6100,{88,12}},
+    {6200,{90,10}},
+    {6300,{93,7}},
+    {6400,{96,4}},
+    {6500,{100,0}},
 };
+#endif
 
 void load_light_state(void);
 
@@ -305,7 +359,7 @@ void user_init()
 
 void led_flash(uint8_t times)
 {
-    printk("%s %d\n", times);
+    BT_DBG("%s %d\n", times);
     //aos_msleep(times * 1000);
 }
 
@@ -332,7 +386,7 @@ void load_light_state(void)
     if(ret == GENIE_FLASH_SUCCESS) {
         while(i < MESH_ELEM_STATE_COUNT) {
             memcpy(&g_elem_state[i].powerup, &g_powerup[i], sizeof(model_powerup_t));
-            BT_DBG_R("elem %d, actual %d temp %d", i, g_powerup[i].last_actual, g_powerup[i].last_temp);
+            LIGHT_DBG("elem %d, actual %d temp %d", i, g_powerup[i].last_actual, g_powerup[i].last_temp);
 #ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
             if(g_powerup[i].last_actual) {
                 g_elem_state[i].state.actual[T_TAR] = g_powerup[i].last_actual;
@@ -367,19 +421,19 @@ void load_light_state(void)
 #endif
             i++;
         }
-        BT_DBG("+ done");
+        LIGHT_DBG("+ done");
     }
 }
 
 u16_t vendor_model_msg_handle(vnd_model_msg *p_msg)
 {
-    printk("vendor model message received\n");
+    BT_DBG("vendor model message received\n");
     if (!p_msg)
         return -1;
 
-    printk("opcode:0x%x, tid:%d, len:%d", p_msg->opid, p_msg->tid, p_msg->len);
+    LIGHT_DBG("opcode:0x%x, tid:%d, len:%d\n", p_msg->opid, p_msg->tid, p_msg->len);
     if (p_msg->data && p_msg->len)
-        printk("payload: %s", bt_hex(p_msg->data, p_msg->len));
+        LIGHT_DBG("payload: %s\n", bt_hex(p_msg->data, p_msg->len));
 
     switch (p_msg->opid) {
         case VENDOR_OP_ATTR_GET_STATUS:
@@ -415,6 +469,7 @@ static void _led_set(uint8_t elem_index, uint8_t on, uint16_t actual, uint16_t t
     static uint16_t last_acual = 0;
     static uint16_t last_temperature = 0;
 
+    LIGHT_DBG("%s, %d,%d,%d", __func__, on, actual, temperature);
     if(last_onoff != on) {
         last_onoff = on;
         lsd_led_update_last(last_onoff,last_acual, last_temperature);
@@ -471,22 +526,35 @@ static uint8_t lsd_led_update_last(uint8_t on, uint16_t actual, uint16_t tempera
         temperature = CW_TEMP_MAX;
     }
 
+#if defined(BOARD_TC825X)
     pwm_cfg_c.freq = 300000;
     pwm_cfg_w.freq = 300000;
+#elif defined(BOARD_CH6121EVB)
+    pwm_cfg_c.freq = 100; //Here, it is period in ch6121
+    pwm_cfg_w.freq = 100;
+#endif
 
     if (on) {
         temperature_table = ((float)(temperature-800)/(20000-800)*3800)+2700;
         temperature_to_pwm(temperature_table, temp_pwm);
 
+#if defined(BOARD_TC825X) 
         pwm_cfg_c.duty_cycle = ((float)actual/65535)*((float)temp_pwm[0]/65535);
         pwm_cfg_w.duty_cycle = ((float)actual/65535)*((float)temp_pwm[1]/65535);
+#elif defined(BOARD_CH6121EVB)
+//printf("%s, actual %d, temperature %d, pwm0 %d, pwm1 %d\n", __func__, actual, temperature, temp_pwm[0], temp_pwm[1]);
+        //float duty_c = ((float)actual/65535.0)*((float)temp_pwm[0]/65535.0) * pwm_cfg_w.freq;
+        //float duty_w = ((float)actual/65535.0)*((float)temp_pwm[1]/65535.0) * pwm_cfg_w.freq;
+        pwm_cfg_c.duty_cycle = pwm_cfg_w.freq - temp_pwm[0];
+        pwm_cfg_w.duty_cycle = pwm_cfg_w.freq - temp_pwm[1];
+#endif
     }
     else{
         pwm_cfg_c.duty_cycle = 0;
         pwm_cfg_w.duty_cycle = 0;
     }
 
-#ifdef BOARD_TC825X
+#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB)
     err = hal_pwm_para_chg(&light_led_c,pwm_cfg_c);
     err += hal_pwm_para_chg(&light_led_w,pwm_cfg_w);
 #endif
@@ -609,7 +677,7 @@ static uint8_t led_ctrl(gpio_dev_t *led, bool on)
     if (!led)
         return -1;
 
-#if BOARD_TC825X
+#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB)
     on = !on;   // PCB is high valid
 #endif
 
@@ -625,7 +693,7 @@ static uint8_t led_ctrl(gpio_dev_t *led, bool on)
  */
 static u8_t leds_init(void)
 {
-#ifdef BOARD_TC825X
+#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB)
     light_led_c.port = LIGHT_LEVEL_UP;
     light_led_c.config.duty_cycle = 0;
     light_led_c.config.freq = 300000;

@@ -10,6 +10,9 @@
 #include "base/genie_flash.h"
 #include "base/genie_reset.h"
 #include "base/tri_tuple.h"
+#ifdef MESH_MODEL_VENDOR_TIMER
+#include "base/vendor_timers.h"
+#endif
 
 #ifdef CONFIG_GENIE_OTA
 #include "bluetooth/host/profile/ais_srv/ais_service.h"

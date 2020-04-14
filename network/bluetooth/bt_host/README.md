@@ -33,7 +33,6 @@ Bt is a highly configurable Bluetooth Low Energy(BLE) stack in compliance with B
 
 ## API
 
-Please refer to  [bluetooth](https://yuque.antfin-inc.com/aliosthings/pubdoc/doc.components.network.bluetooth) for API details.
 
 ## Reference
 

@@ -19,15 +19,25 @@ $(NAME)_SOURCES := host/uuid.c \
                      host/l2cap.c \
                      host/att.c \
                      host/gatt.c \
-                     host/crypto.c \
                      host/keys.c \
                      host/rpa.c \
                      host/multi_adv.c
 
-$(NAME)_SOURCES += host/hci_ecc.c
+ifeq ($(HOST_MCU_FAMILY),ch6121)
+$(NAME)_SOURCES += hci_driver/ch6121_driver.c
 
-ifeq ($(hci_h4),1)
+#GLOBAL_DEFINES += CONFIG_BT_DEBUG_LOG
+#GLOBAL_DEFINES += CONFIG_BT_DEBUG
+else
 $(NAME)_SOURCES += hci_driver/h4.c
+endif
+bt_host_tinycrypt ?= 1
+ifeq ($(bt_host_tinycrypt),1)
+$(NAME)_SOURCES += host/crypto.c \
+                   host/hci_ecc.c
+else
+$(NAME)_SOURCES += host/crypto_ctrl.c \
+                   host/hci_ecc_ctrl.c
 endif
 
 ifeq ($(COMPILER),)
@@ -35,8 +45,6 @@ $(NAME)_CFLAGS      += -Wall
 else ifeq ($(COMPILER),gcc)
 $(NAME)_CFLAGS      += -Wall
 endif
-
-
 
 en_bt_smp ?= 1
 ifeq ($(en_bt_smp),1)
@@ -48,8 +56,10 @@ endif
 
 ## BLE debug log general control macro (Note: still to be affected by DEBUG)
 ## Enable below macros if BLE stack debug needed
+ifneq ($(HOST_MCU_FAMILY),ch6121)
 GLOBAL_DEFINES += CONFIG_BT_DEBUG_LOG
 GLOBAL_DEFINES += CONFIG_BT_DEBUG
+endif
 
 ## BLE subsystem debug log control macro
 ## Enable below macros if component-specific debug needed

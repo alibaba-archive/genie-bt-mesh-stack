@@ -55,11 +55,19 @@ static void _reboot_handle(char *pwbuf, int blen, int argc, char **argv)
 
 void print_sw_info(void)
 {
-    BT_INFO("DEVICE:%s", CONFIG_BT_DEVICE_NAME);
-    BT_INFO("SW VER:%08x", PROJECT_SW_VERSION);
-    BT_INFO("SDK:v%s", APP_SDK_VERSION);
-    BT_INFO("OS:v%d", SYSINFO_OS_VERSION);
-    BT_INFO("PROUDUCT:%s", SYSINFO_PRODUCT_MODEL);
+#if defined(BOARD_CH6121EVB)
+    printf("DEVICE:%s\n", CONFIG_BT_DEVICE_NAME);
+    printf("SW VER:%08x\n", PROJECT_SW_VERSION);
+    printf("SDK:v%s\n", APP_SDK_VERSION);
+    printf("OS:v%d\n", SYSINFO_OS_VERSION);
+    printf("PROUDUCT:%s\n", SYSINFO_PRODUCT_MODEL);
+#else
+    BT_INFO("DEVICE:%s\n", CONFIG_BT_DEVICE_NAME);
+    BT_INFO("SW VER:%08x\n", PROJECT_SW_VERSION);
+    BT_INFO("SDK:v%s\n", APP_SDK_VERSION);
+    BT_INFO("OS:v%d\n", SYSINFO_OS_VERSION);
+    BT_INFO("PROUDUCT:%s\n", SYSINFO_PRODUCT_MODEL);
+#endif
 }
 
 static void _get_sw_info(char *pwbuf, int blen, int argc, char **argv)

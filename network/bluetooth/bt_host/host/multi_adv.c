@@ -287,7 +287,7 @@ int multi_adv_start_adv_instant(struct multi_adv_instant *adv_instant)
         adv_instant->param.own_addr = NULL;
     }
 
-    ret = bt_le_adv_start_instant(&adv_instant->param, 
+    ret = bt_mesh_adv_start_instant(&adv_instant->param, 
                                 adv_instant->ad, adv_instant->ad_len,
                                 adv_instant->sd, adv_instant->sd_len);
     if (ret) {
@@ -497,7 +497,7 @@ void multi_adv_new_schedule(void)
 
     /* instant number equal 0 and 1 */
     if (inst_num == 0) {
-        bt_le_adv_stop();
+        bt_mesh_adv_stop();
         return;
     }
     if (inst_num == 1) {

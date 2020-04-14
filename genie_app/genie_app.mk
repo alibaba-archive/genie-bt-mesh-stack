@@ -28,6 +28,9 @@ $(NAME)_SOURCES  += genie_app.c \
 					bluetooth/mesh/genie_mesh.c \
 					bluetooth/mesh/genie_mesh_flash.c
 
+ifeq ($(MESH_MODEL_VENDOR_TIMER),1)
+$(NAME)_SOURCES += base/vendor_timers.c
+endif
 GLOBAL_DEFINES += CONFIG_BT_MESH
 GLOBAL_DEFINES += CONFIG_GENIE_CLI
 GLOBAL_DEFINES += APP_SDK_VERSION=\"$($(NAME)_VERSION)\"

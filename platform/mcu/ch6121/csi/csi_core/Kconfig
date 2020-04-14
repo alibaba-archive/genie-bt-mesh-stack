@@ -1,0 +1,288 @@
+choice
+        prompt "arch options"
+        default ARCH_CSKY
+        help
+            select the architecture
+
+config ARCH_CSKY
+        bool "csky"
+        help
+            csky architecture
+
+config ARCH_RV32
+        bool "rv32"
+        help
+            rv32 architecture
+
+config ARCH_ARM
+        bool "arm"
+        help
+            arm architecture
+
+endchoice
+
+choice
+        prompt "cpu options"
+        default CPU_E802
+        depends on ARCH_CSKY
+        help
+            select the cpu
+
+config CPU_E801
+        bool "e801"
+        help
+            cpu of e801
+
+config CPU_E802
+        bool "e802"
+        help
+            cpu of e802
+
+config CPU_E802T
+        bool "e802t"
+        select SYSTEM_SECURE
+        help
+            cpu of e802t
+
+config CPU_S802
+        bool "s802"
+        help
+            cpu of s802
+
+config CPU_S802T
+        bool "s802t"
+        select SYSTEM_SECURE
+        help
+            cpu of s802t
+
+config CPU_E803
+        bool "e803"
+        help
+            cpu of e803
+
+config CPU_E803T
+        bool "e803t"
+        select SYSTEM_SECURE
+        help
+            cpu of e803t
+
+config CPU_S803
+        bool "s803"
+        help
+            cpu of s803
+
+config CPU_S803T
+        bool "s803t"
+        select SYSTEM_SECURE
+        help
+            cpu of s803t
+
+config CPU_E804D
+       bool "e804d"
+        help
+            cpu of e804d
+
+config CPU_E804DT
+       bool "e804dt"
+       select SYSTEM_SECURE
+       help
+          cpu of e804dt
+
+config CPU_E804F
+        bool "e804f"
+        help
+            cpu of e804f
+
+config CPU_E804FT
+        bool "e804ft"
+        select SYSTEM_SECURE
+        help
+            cpu of e804ft
+
+config CPU_E804DF
+        bool "e804df"
+        help
+            cpu of e804df
+
+config CPU_E804DFT
+        bool "e804dft"
+        select SYSTEM_SECURE
+        help
+            cpu of e804dft
+
+config CPU_I805
+        bool "i805"
+        help
+            cpu of i805
+
+config CPU_I805F
+        bool "i805f"
+        help
+            cpu of i805f
+
+config CPU_CK801
+        bool "ck801"
+        help
+            cpu of ck801
+
+config CPU_CK802
+        bool "ck802"
+        help
+            cpu of ck802
+
+config CPU_CK803
+        bool "ck803"
+        help
+            cpu of ck803
+
+config CPU_CK803F
+        bool "ck803f"
+        help
+            cpu of ck803f
+
+config CPU_CK803ER1
+        bool "ck803er1"
+        help
+            cpu of ck803er1
+
+config CPU_CK803EFR1
+        bool "ck803efr1"
+        help
+            cpu of ck803efr1
+
+config CPU_CK803EF
+        bool "ck803ef"
+        help
+            cpu of ck803ef
+
+config CPU_CK804EF
+        bool "ck804ef"
+        help
+            cpu of ck804ef
+
+config CPU_CK805
+        bool "ck805"
+        help
+            cpu of ck805
+
+config CPU_CK805F
+        bool "ck805f"
+        help
+            cpu of ck805f
+
+config CPU_CK807
+        bool "ck807"
+        help
+            cpu of ck807
+
+config CPU_CK807F
+        bool "ck807f"
+        help
+            cpu of ck807f
+
+config CPU_CK810
+        bool "ck810"
+        help
+            cpu of ck810
+
+config CPU_CK810F
+        bool "ck810f"
+        help
+            cpu of ck810f
+
+config CPU_CK610E
+        bool "ck610e"
+        help
+            cpu of ck610e
+
+config CPU_CK610EF
+        bool "ck610ef"
+        help
+            cpu of ck610ef
+
+config CPU_C807
+        bool "c807"
+        help
+            cpu of c807
+
+config CPU_C807F
+        bool "c807f"
+        help
+            cpu of c807f
+
+config CPU_C807FV
+        bool "c807fv"
+        help
+            cpu of c807fv
+
+config CPU_R807
+        bool "r807"
+        help
+            cpu of r807
+
+config CPU_R807F
+        bool "r807f"
+        help
+            cpu of r807f
+
+config CPU_C810
+        bool "c810"
+        help
+            cpu of c810
+
+config CPU_C810T
+        bool "c810t"
+        select SYSTEM_SECURE
+        help
+            cpu of c810t
+
+config CPU_C810V
+        bool "c810v"
+        help
+            cpu of c810v
+
+config CPU_C810TV
+        bool "c810tv"
+        select SYSTEM_SECURE
+        help
+            cpu of c810tv
+
+endchoice
+
+choice
+        prompt "cpu options"
+        default CPU_RV32EMC
+        depends on ARCH_RV32
+        help
+            select the cpu
+
+config CPU_RV32EMC
+        bool "rv32emc"
+        help
+           cpu of rv32emc
+
+config CPU_RV32EC
+        bool "rv32ec"
+        help
+           cpu of rv32ec
+
+endchoice
+
+choice
+        prompt "cpu options"
+        default CPU_CM0
+        depends on ARCH_ARM
+        help
+            select the cpu
+
+config CPU_CM0
+        bool "cortex-m0"
+        help
+           cpu of cortex-m0
+
+endchoice
+
+config SYSTEM_SECURE
+       bool "security system"
+       help
+         select the security system

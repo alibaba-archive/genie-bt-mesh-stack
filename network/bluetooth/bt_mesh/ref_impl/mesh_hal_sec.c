@@ -4,9 +4,11 @@
 
 #include <errno.h>
 #include <stddef.h>
+#include <bluetooth.h>
 #include <port/mesh_hal_sec.h>
 
 #ifndef CONFIG_MESH_STACK_ALONE
+#include <crypto.h>
 #include <tinycrypt/constants.h>
 #include <tinycrypt/utils.h>
 #include <tinycrypt/aes.h>
@@ -43,6 +45,24 @@ int bt_mesh_aes_decrypt(const uint8_t key[16], const uint8_t enc_data[16],
 int bt_mesh_aes_cmac(const uint8_t key[16], struct bt_mesh_sg *sg,
                      size_t sg_len, uint8_t mac[16])
 {
+#ifdef BOARD_CH6121EVB
+    struct bt_cmac_t ctx;
+
+    if (bt_cmac_setup(&ctx, key)) {
+        return -EIO;
+    }
+
+    for (; sg_len; sg_len--, sg++) {
+        if (bt_cmac_update(&ctx, sg->data,
+                           sg->len)) {
+            return -EIO;
+        }
+    }
+
+    if (bt_cmac_finish(&ctx, mac)) {
+        return -EIO;
+    }
+#else
 #ifndef CONFIG_MESH_STACK_ALONE
     struct tc_aes_key_sched_struct sched;
     struct tc_cmac_struct state;
@@ -62,7 +82,7 @@ int bt_mesh_aes_cmac(const uint8_t key[16], struct bt_mesh_sg *sg,
         return -EIO;
     }
 #endif
-
+#endif
     return 0;
 }
 

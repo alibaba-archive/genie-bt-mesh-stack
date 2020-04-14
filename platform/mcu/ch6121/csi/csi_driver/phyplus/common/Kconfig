@@ -1,0 +1,12 @@
+menu "Driver options"
+
+endmenu
+
+menu "Low Power Manager options"
+
+config LPM
+       bool "pmu"
+       default n
+       help
+         select the pmu driver
+endmenu

@@ -246,6 +246,369 @@ void poweron_indicate_start(void)
     k_timer_start(&g_indc_timer, random_time);
 }
 
+#ifdef MESH_MODEL_VENDOR_TIMER
+static void _vendor_timer_operate_status(uint8_t tid, u16_t attr_type)
+{
+    vnd_model_msg reply_msg;
+    uint8_t payload[10] = {0};
+    u16_t payload_len;
+
+    switch (attr_type) {
+    case UNIX_TIME_T:
+    {
+        uint32_t unix_time = vendor_timer_local_unixtime_get();
+        payload_len = 2 + 4;
+        payload[0] = UNIX_TIME_T & 0xff;
+        payload[1] = (UNIX_TIME_T >> 8) & 0xff;
+        payload[2] = (uint8_t)(unix_time & 0xFF);
+        payload[3] = (uint8_t)((unix_time >> 8) & 0xFF);
+        payload[4] = (uint8_t)((unix_time >> 16) & 0xFF);
+        payload[5] = (uint8_t)((unix_time >> 24) & 0xFF);
+    }
+        break;
+    case TIMEZONE_SETTING_T:
+    {
+        int8_t timezone = vendor_timer_timezone_get();
+        payload_len = 2 + 1;
+        payload[0] = TIMEZONE_SETTING_T & 0xff;
+        payload[1] = (TIMEZONE_SETTING_T >> 8) & 0xff;
+        payload[2] = timezone;
+    }
+        break;
+    case TIMING_SYNC_T:
+    {
+        u16_t period_time = 0;
+        u8_t  retry_delay = 0;
+        u8_t  retry_times = 0;
+        vendor_timer_time_sync_get(&period_time, &retry_delay, &retry_times);
+        payload_len = 2 + 4;
+        payload[0] = TIMING_SYNC_T & 0xff;
+        payload[1] = (TIMING_SYNC_T >> 8) & 0xff;
+        payload[2] = period_time & 0xff;;
+        payload[3] = (period_time >> 8) & 0xff;
+        payload[4] = retry_delay;
+        payload[5] = retry_times;
+    }
+        break;
+
+    default:
+        return;
+    }
+    reply_msg.opid = VENDOR_OP_ATTR_STATUS;
+    reply_msg.tid = tid;
+    reply_msg.data = payload;
+    reply_msg.len = payload_len;
+    reply_msg.p_elem = &elements[0];
+    reply_msg.retry_period = 120 + 300;
+    reply_msg.retry = 1;
+    genie_vendor_model_msg_send(&reply_msg);
+}
+
+static void _vendor_timer_unixtime_indicate()
+{
+    vnd_model_msg request_msg;
+    uint8_t payload[2] = {0};
+
+    payload[0] = UNIX_TIME_T & 0xff;
+    payload[1] = (UNIX_TIME_T >> 8) & 0xff;
+
+    request_msg.opid = VENDOR_OP_ATTR_INDICATE_TG;
+    request_msg.tid = 0;
+    request_msg.data = payload;
+    request_msg.len = sizeof(payload);
+    request_msg.p_elem = &elements[0];
+    request_msg.retry_period = 120 + 300;
+    request_msg.retry = VENDOR_MODEL_MSG_MAX_RETRY_TIMES;
+
+    genie_vendor_model_msg_send(&request_msg);
+}
+
+static void _vendor_timer_errcode_status(u16_t attr_type, u8_t err_code, u8_t index, uint8_t tid)
+{
+    vnd_model_msg reply_msg;
+    uint8_t payload[2 + 4] = {0};
+
+    payload[0] = ERROR_CODE_T & 0xff;
+    payload[1] = (ERROR_CODE_T >> 8) & 0xff;
+    payload[2] = attr_type & 0xff;
+    payload[3] = (attr_type >> 8) & 0xff;
+    payload[4] = err_code;
+    payload[5] = index;
+
+    reply_msg.opid = VENDOR_OP_ATTR_STATUS;
+    reply_msg.tid = tid;
+    reply_msg.data = payload;
+    reply_msg.len = sizeof(payload);
+    reply_msg.p_elem = &elements[0];
+    reply_msg.retry_period = 120 + 300;
+    reply_msg.retry = 1;
+
+    genie_vendor_model_msg_send(&reply_msg);
+
+}
+
+static void _vendor_timer_timing_settting_event(u8_t op, u8_t *msg, u16_t msg_length, uint8_t tid)
+{
+    struct {
+        uint32_t unix_time;
+        uint8_t index;
+        vendor_attr_data_t attr_data;
+    } timing_setting_attr;
+
+    u8_t *pmsg = msg;
+    uint16_t msg_len = msg_length;
+
+    u16_t attr_type = *pmsg++ + (*pmsg++ << 8);
+    msg_len -= 2;
+
+    if (attr_type != TIMING_SETTING_T) {
+        return;
+    }
+
+    if (op != VENDOR_OP_ATTR_SET_ACK && op != VENDOR_OP_ATTR_GET_STATUS) {
+        return;
+    }
+
+    if (op == VENDOR_OP_ATTR_SET_ACK) {
+        while (msg_len > 0) {
+            if (msg_len < sizeof(timing_setting_attr)) {
+                break;
+            }
+
+            timing_setting_attr.index = *pmsg++;
+            uint32_t unixtime_tmp = (pmsg[0]) | (pmsg[1] << 8) | (pmsg[2] << 16) | (pmsg[3] << 24);
+            pmsg += 4;
+
+            timing_setting_attr.unix_time = unixtime_tmp / 60 * 60;
+
+            if (unixtime_tmp % 60 != 1) {
+                //return _vendor_timer_errcode_status(TIMING_SETTING_T, ERR_CODE_NOTSUP_ATTR_OP,
+                //                                  timing_setting_attr.index, tid);
+            }
+
+            timing_setting_attr.attr_data.type = (pmsg[0]) | (pmsg[1] << 8);
+            pmsg += 2;
+
+            if (timing_setting_attr.attr_data.type != ONOFF_T) {
+                return _vendor_timer_errcode_status(TIMING_SETTING_T, ERR_CODE_NOTSUP_ATTR_OP,
+                                                    timing_setting_attr.index, tid);
+            }
+
+            timing_setting_attr.attr_data.para = *pmsg++;
+
+            if (timing_setting_attr.attr_data.para > 1) {
+                return _vendor_timer_errcode_status(TIMING_SETTING_T, ERR_CODE_NOTSUP_ATTR_PARAM,
+                                                    timing_setting_attr.index, tid);
+            }
+
+            int ret = vendor_timer_start(timing_setting_attr.index,
+                                         timing_setting_attr.unix_time,
+                                         &timing_setting_attr.attr_data);
+
+            if (ret) {
+                uint8_t errcode;
+
+                if (ret == -VT_E_INIT || ret == VT_E_LOCALTIME_NOTSET) {
+                    errcode = ERR_CODE_UNIXTIME;
+                } else if (ret == -VT_E_INDEX) {
+                    errcode = ERR_CODE_TIMER_INDEX;
+                } else if (ret == -VT_E_NORESOURCE) {
+                    errcode = ERR_CODE_TIMER_FULL;
+                } else if (ret == -VT_E_PARAM) {
+                    errcode = ERR_CODE_TIMER_SETTING;
+                } else {
+                    errcode = ERR_CODE_UNIXTIME;
+                }
+
+                return _vendor_timer_errcode_status(TIMING_SETTING_T, errcode,
+                                                    timing_setting_attr.index, tid);
+            }
+
+            msg_len -= sizeof(timing_setting_attr);
+        }
+
+    }
+
+    vnd_model_msg reply_msg;
+
+    reply_msg.opid = VENDOR_OP_ATTR_STATUS;
+    reply_msg.tid = tid;
+    reply_msg.data = msg;
+    reply_msg.len = msg_length;
+    reply_msg.p_elem = &elements[0];
+    reply_msg.retry_period = 120 + 300;
+    reply_msg.retry = 1;
+
+    genie_vendor_model_msg_send(&reply_msg);
+}
+
+static void _vendor_timer_priordic_timing_settting_event(u8_t op, u8_t *msg, u16_t msg_length, uint8_t tid)
+{
+    struct {
+        uint8_t index;
+        uint16_t prioridc_time;
+        uint8_t  schedule;
+        vendor_attr_data_t attr_data;
+    } priordic_timing_attr;
+
+    u8_t *pmsg = msg;
+    uint16_t msg_len = msg_length;
+
+    u16_t attr_type = *pmsg++ + (*pmsg++ << 8);
+    msg_len -= 2;
+
+    if (attr_type != TIMING_PERIODIC_SETTING_T) {
+        return;
+    }
+
+    if (op != VENDOR_OP_ATTR_SET_ACK && op != VENDOR_OP_ATTR_GET_STATUS) {
+        return;
+    }
+
+    if (op == VENDOR_OP_ATTR_SET_ACK) {
+        while (msg_len > 0) {
+            if (msg_len < 7) { // sizeof(priordic_timing_attr) by bytes
+                break;
+            }
+
+            priordic_timing_attr.index = *pmsg++;
+            uint32_t priordic_tmp = (pmsg[0]) | (pmsg[1] << 8);
+            pmsg += 2;
+
+            priordic_timing_attr.prioridc_time = priordic_tmp & 0x0FFF;
+
+            if (((priordic_tmp >> 12) & 0x0F) != 1) {
+                //return _vendor_timer_errcode_status(TIMING_PERIODIC_SETTING_T, ERR_CODE_NOTSUP_ATTR_OP,
+                //                                  priordic_timing_attr.index, tid);
+            }
+
+            priordic_timing_attr.schedule = *pmsg++;
+
+            if (priordic_timing_attr.schedule > 0x7F) {
+                return _vendor_timer_errcode_status(TIMING_PERIODIC_SETTING_T, ERR_CODE_TIMER_PRIORDIC_PARAM,
+                                                    priordic_timing_attr.index, tid);
+            }
+
+            priordic_timing_attr.attr_data.type = (pmsg[0]) | (pmsg[1] << 8);
+            pmsg += 2;
+
+            if (priordic_timing_attr.attr_data.type != ONOFF_T) {
+                return _vendor_timer_errcode_status(TIMING_PERIODIC_SETTING_T, ERR_CODE_NOTSUP_ATTR_OP,
+                                                    priordic_timing_attr.index, tid);
+            }
+
+            priordic_timing_attr.attr_data.para = *pmsg++;
+
+            if (priordic_timing_attr.attr_data.para > 1) {
+                return _vendor_timer_errcode_status(TIMING_PERIODIC_SETTING_T, ERR_CODE_NOTSUP_ATTR_PARAM,
+                                                    priordic_timing_attr.index, tid);
+            }
+
+            int ret = vendor_timer_periodic_start(priordic_timing_attr.index,
+                                                  priordic_timing_attr.prioridc_time * 60,
+                                                  priordic_timing_attr.schedule,
+                                                  &priordic_timing_attr.attr_data);
+
+            if (ret) {
+                uint8_t errcode;
+
+                if (ret == -VT_E_INIT || ret == VT_E_LOCALTIME_NOTSET) {
+                    errcode = ERR_CODE_UNIXTIME;
+                } else if (ret == -VT_E_INDEX) {
+                    errcode = ERR_CODE_TIMER_INDEX;
+                } else if (ret == -VT_E_NORESOURCE) {
+                    errcode = ERR_CODE_TIMER_FULL;
+                } else if (ret == -VT_E_PARAM) {
+                    errcode = ERR_CODE_TIMER_SETTING;
+                } else {
+                    errcode = ERR_CODE_TIMER_PRIORDIC_PARAM;
+                }
+
+                return _vendor_timer_errcode_status(TIMING_PERIODIC_SETTING_T, errcode,
+                                                    priordic_timing_attr.index, tid);
+            }
+
+            msg_len -= 7; // sizeof(priordic_timing_attr) by bytes
+        }
+
+    }
+
+    vnd_model_msg reply_msg;
+
+    reply_msg.opid = VENDOR_OP_ATTR_STATUS;
+    reply_msg.tid = tid;
+    reply_msg.data = msg;
+    reply_msg.len = msg_length;
+    reply_msg.p_elem = &elements[0];
+    reply_msg.retry_period = 120 + 300;
+    reply_msg.retry = 1;
+
+    genie_vendor_model_msg_send(&reply_msg);
+}
+
+static void _vendor_timer_timing_remove_event(u8_t op, u8_t *msg, u16_t msg_length, uint8_t tid)
+{
+    u8_t *pmsg = msg;
+    uint16_t msg_len = msg_length;
+
+    u16_t attr_type = *pmsg++ + (*pmsg++ << 8);
+    msg_len -= 2;
+
+    if (attr_type != TIMING_DELETE_T) {
+        return;
+    }
+
+    if (op != VENDOR_OP_ATTR_SET_ACK) {
+        return;
+    }
+
+    if (op == VENDOR_OP_ATTR_SET_ACK) {
+        while (msg_len > 0) {
+            uint8_t index = *pmsg++;
+            msg_len--;
+
+            int ret = vendor_timer_remove(index);
+
+            if (ret) {
+                //return _vendor_timer_errcode_status(TIMING_DELETE_T, ERR_CODE_TIMER_INDEX, index, tid);
+            }
+        }
+    }
+
+    vnd_model_msg reply_msg;
+
+    reply_msg.opid = VENDOR_OP_ATTR_STATUS;
+    reply_msg.tid = tid;
+    reply_msg.data = msg;
+    reply_msg.len = msg_length;
+    reply_msg.p_elem = &elements[0];
+    reply_msg.retry_period = 120 + 300;
+    reply_msg.retry = 1;
+
+    genie_vendor_model_msg_send(&reply_msg);
+}
+
+static void _vendor_timer_timeout_indicate(u8_t index)
+{
+    vnd_model_msg request_msg;
+    uint8_t payload[2 + 2] = {0};
+
+    payload[0] = TIMING_TIMEOUT_T & 0xff;
+    payload[1] = (TIMING_TIMEOUT_T >> 8) & 0xff;
+    payload[2] = EL_TIMING_TIMEOUT_T;
+    payload[3] = index;
+
+    request_msg.opid = VENDOR_OP_ATTR_INDICATE;
+    request_msg.tid = 0;
+    request_msg.data = payload;
+    request_msg.len = sizeof(payload);
+    request_msg.p_elem = &elements[0];
+    request_msg.retry_period = 120 + 300;
+    request_msg.retry = VENDOR_MODEL_MSG_MAX_RETRY_TIMES;
+
+    genie_vendor_model_msg_send(&request_msg);
+}
+#endif
 u16_t genie_indicate_hw_reset_event (void)
 {
     vnd_model_msg reply_msg;
@@ -271,13 +634,13 @@ u16_t genie_indicate_hw_reset_event (void)
 
 u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
     uint8_t *p_data = NULL;
-    printk("vendor model message received\n");
+    BT_DBG("vendor model message received\n");
     if (!p_msg || !p_msg->data)
         return -1;
     p_data = p_msg->data;
-    printk("opcode:0x%x, tid:%d, len:%d", p_msg->opid, p_msg->tid, p_msg->len);
+    BT_DBG("opcode:0x%x, tid:%d, len:%d\n", p_msg->opid, p_msg->tid, p_msg->len);
     if (p_data && p_msg->len)
-        printk("payload: %s", bt_hex(p_data, p_msg->len));
+        BT_DBG("payload: %s\n", bt_hex(p_data, p_msg->len));
 
     switch (p_msg->opid) {
         case VENDOR_OP_ATTR_INDICATE:
@@ -298,6 +661,64 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
 
             break;
         }
+        case VENDOR_OP_ATTR_GET_STATUS: {
+            u16_t attr_type = *p_data++ + (*p_data++ << 8);
+#ifdef MESH_MODEL_VENDOR_TIMER
+            if (attr_type == UNIX_TIME_T ||
+                attr_type == TIMEZONE_SETTING_T ||
+                attr_type == TIMING_SYNC_T) {
+                _vendor_timer_operate_status(p_msg->tid, attr_type);
+            } else if (attr_type == TIMING_SETTING_T) {
+                _vendor_timer_timing_settting_event(VENDOR_OP_ATTR_GET_STATUS, p_msg->data, p_msg->len, p_msg->tid);
+            } else if (attr_type == TIMING_PERIODIC_SETTING_T) {
+                _vendor_timer_priordic_timing_settting_event(VENDOR_OP_ATTR_GET_STATUS, p_msg->data, p_msg->len, p_msg->tid);
+            }
+#endif
+            break;
+        }
+
+        case VENDOR_OP_ATTR_SET_ACK: {
+            u16_t attr_type = *p_data++ + (*p_data++ << 8);
+#ifdef MESH_MODEL_VENDOR_TIMER
+            if (attr_type == UNIX_TIME_T) {
+                uint32_t unix_time = (p_data[0]) | (p_data[1] << 8) | (p_data[2] << 16) | (p_data[3] << 24);
+                p_data += 4;
+                vendor_timer_local_time_update(unix_time);
+                _vendor_timer_operate_status(p_msg->tid, attr_type);
+            } else if (attr_type == TIMEZONE_SETTING_T) {
+                int8_t timezone = *p_data++;
+                vendor_timer_timezone_update(timezone);
+                _vendor_timer_operate_status(p_msg->tid, attr_type);
+            } else if (attr_type == TIMING_SYNC_T) {
+                u16_t period_time = (p_data[0]) | (p_data[1] << 8);
+                p_data += 2;
+                u8_t  retry_delay = *p_data++;
+                u8_t  retry_times = *p_data++;
+                vendor_timer_time_sync_set(period_time, retry_delay, retry_times);
+                _vendor_timer_operate_status(p_msg->tid, attr_type);
+            } else if (attr_type == TIMING_SETTING_T) {
+                _vendor_timer_timing_settting_event(VENDOR_OP_ATTR_SET_ACK, p_msg->data, p_msg->len, p_msg->tid);
+            } else if (attr_type == TIMING_PERIODIC_SETTING_T) {
+                _vendor_timer_priordic_timing_settting_event(VENDOR_OP_ATTR_SET_ACK, p_msg->data, p_msg->len, p_msg->tid);
+            } else if (attr_type == TIMING_DELETE_T) {
+                _vendor_timer_timing_remove_event(VENDOR_OP_ATTR_SET_ACK, p_msg->data, p_msg->len, p_msg->tid);
+            }
+#endif
+            break;
+        }
+
+        case VENDOR_OP_ATTR_CONFIME_TG: {
+            u16_t attr_type = *p_data++ + (*p_data++ << 8);
+#ifdef MESH_MODEL_VENDOR_TIMER
+            if (attr_type == UNIX_TIME_T) {
+                uint32_t unix_time = (p_data[0]) | (p_data[1] << 8) | (p_data[2] << 16) | (p_data[3] << 24);
+                p_data += 4;
+                vendor_timer_local_time_update(unix_time);
+            }
+#endif
+            break;
+        }
+
         default:
             break;
     }
@@ -467,14 +888,14 @@ s16_t genie_vendor_model_msg_send(vnd_model_msg *p_vendor_msg) {
         return r;
 
     opid = p_vendor_msg->opid;
-    BT_DBG("opcode:0x%x, tid:%d, len:%d", opid, p_vendor_msg->tid, p_vendor_msg->len);
+    BT_DBG("VND msg send: opcode:0x%x, tid:%d, len:%d\n", opid, p_vendor_msg->tid, p_vendor_msg->len);
 
 #if 0
     // vnedor confirm message contains 0 extra data except opid
     if (!p_vendor_msg->data && !p_vendor_msg->len)
         return r;
 #endif
-    BT_DBG("payload: %s", p_vendor_msg->len ? bt_hex(p_vendor_msg->data, p_vendor_msg->len) : "empty");
+    BT_DBG("payload: %s\n", p_vendor_msg->len ? bt_hex(p_vendor_msg->data, p_vendor_msg->len) : "empty");
 
     switch (opid) {
         case VENDOR_OP_ATTR_STATUS:
@@ -679,6 +1100,22 @@ static void _prov_reset(void)
     user_prov_reset();
 }
 
+#ifdef MESH_MODEL_VENDOR_TIMER
+int _vendor_timer_event(uint8_t event, uint8_t index, vendor_attr_data_t *data)
+{
+    if (event == VT_TIMEOUT) {
+        vendor_timer_local_time_show();
+        printf("timer index %d timeout\n", index);
+        genie_event(GENIE_EVT_TIME_OUT, data);
+        _vendor_timer_timeout_indicate(index);
+    } else if (event == VT_TIMING_SYNC) {
+        _vendor_timer_unixtime_indicate();
+    }
+
+    return 0;
+}
+#endif
+
 static void _genie_mesh_ready(int err)
 {
     if (err) {
@@ -692,6 +1129,9 @@ static void _genie_mesh_ready(int err)
         printk("Initializing mesh failed (err %d)\n", err);
         return;
     }
+#ifdef MESH_MODEL_VENDOR_TIMER
+    vendor_timer_init(_vendor_timer_event);
+#endif
 
     //send event
     genie_event(GENIE_EVT_SDK_MESH_INIT, NULL);

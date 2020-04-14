@@ -64,6 +64,7 @@ typedef enum {
 /* APP triggered event, with prefix of GENIE_EVT_APP_ */
     GENIE_EVT_APP_START,
     GENIE_EVT_APP_FAC_QUIT = GENIE_EVT_APP_START,
+    GENIE_EVT_TIME_OUT,
 
 /* !!!END!!! --- Don't add new ID after this one */
     GENIE_EVT_END

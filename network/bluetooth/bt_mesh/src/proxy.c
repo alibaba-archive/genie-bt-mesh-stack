@@ -530,6 +530,11 @@ static void proxy_connected(bt_mesh_conn_t conn, u8_t err)
     /* Since we use ADV_OPT_ONE_TIME */
     proxy_adv_enabled = false;
 
+#ifdef BOARD_CH6121EVB
+    extern int bt_mesh_adv_stop();
+    bt_mesh_adv_stop();
+    bt_mesh_scan_enable();
+#endif
     /* Try to re-enable advertising in case it's possible */
     if (conn_count < CONFIG_BT_MAX_CONN) {
         bt_mesh_adv_update();

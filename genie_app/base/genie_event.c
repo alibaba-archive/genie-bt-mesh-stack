@@ -430,6 +430,20 @@ static E_GENIE_EVENT _genie_event_handle_vnd_msg(vnd_model_msg *p_msg)
     genie_vnd_msg_handle(p_msg);
     return GENIE_EVT_SDK_VENDOR_MSG;
 }
+#ifdef MESH_MODEL_VENDOR_TIMER
+static E_GENIE_EVENT _genie_event_handle_order_msg(vendor_attr_data_t *attr_data)
+{
+    if (attr_data->type == ONOFF_T) {
+        g_elem_state[0].state.onoff[T_TAR] = attr_data->para;
+    }
+#ifdef CONFIG_MESH_MODEL_TRANS
+    return GENIE_EVT_SDK_TRANS_CYCLE;
+#else
+    return GENIE_EVT_SDK_ACTION_DONE;
+#endif
+}
+
+#endif
 #endif
 
 void genie_event(E_GENIE_EVENT event, void *p_arg)
@@ -584,6 +598,14 @@ void genie_event(E_GENIE_EVENT event, void *p_arg)
         case GENIE_EVT_SDK_VENDOR_MSG:
             next_event = _genie_event_handle_vnd_msg((vnd_model_msg *)p_arg);
             break;
+#endif
+#ifdef MESH_MODEL_VENDOR_TIMER
+        case GENIE_EVT_TIME_OUT:
+        {
+            next_event = _genie_event_handle_order_msg((vendor_attr_data_t *)p_arg);
+            p_arg = &g_elem_state[0];
+            break;
+        }
 #endif
         case GENIE_EVT_APP_FAC_QUIT:
             break;

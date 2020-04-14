@@ -53,7 +53,7 @@
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.
  */
-#if ((defined(CONFIG_BT_TINYCRYPT_ECC)) && (!defined(BOARD_BK3435DEVKIT)) && (!defined(BOARD_TC825X)))
+#if (defined(BOARD_CH6121EVB)) || ((defined(CONFIG_BT_TINYCRYPT_ECC)) && (!defined(BOARD_BK3435DEVKIT)) && (!defined(BOARD_TC825X)))
 #define ADV_STACK_SIZE 768
 #else
 #define ADV_STACK_SIZE (512-256)
@@ -471,6 +471,9 @@ void bt_mesh_adv_init(void)
 {
     k_fifo_init(&adv_queue);
     k_lifo_init(&adv_buf_pool.free);
+#ifdef BOARD_CH6121EVB
+    bt_mesh_adv_scan_schd_init();
+#endif
     k_thread_create(&adv_thread_data, adv_thread_stack,
                     K_THREAD_STACK_SIZEOF(adv_thread_stack), adv_thread,
                     NULL, NULL, NULL, CONFIG_BT_MESH_ADV_PRIO, 0, K_NO_WAIT);

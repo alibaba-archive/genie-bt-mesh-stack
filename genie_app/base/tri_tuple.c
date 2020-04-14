@@ -99,8 +99,7 @@ uint8_t *genie_tri_tuple_get_uuid(void)
 
     g_uuid[14] = UNPROV_ADV_FLAG_GENIE_MESH_STACK;
 
-
-    BT_DBG("uuid: %s", bt_hex(g_uuid, 16));
+    BT_DBG("uuid: %s\n", bt_hex(g_uuid, 16));
 
     return g_uuid;
 }

@@ -28,6 +28,26 @@
 #define EL_DEV_UP_T       0x03 /* device power up */
 #define EL_HW_RESET_T     0x23 /* hardware reset event */
 
+/* Vendor timer error code */
+#define ERR_CODE_UNIXTIME                 0x80
+#define ERR_CODE_NOTSUP_ATTR_OP           0x82
+#define ERR_CODE_NOTSUP_ATTR_PARAM        0x83
+#define ERR_CODE_TIMER_SETTING            0x84
+#define ERR_CODE_TIMER_INDEX              0x85
+#define ERR_CODE_TIMER_FULL               0x86
+#define ERR_CODE_TIMER_PRIORDIC_PARAM     0x87
+
+/* Vendor timer ali attr type */
+#define ERROR_CODE_T                0x0000
+#define TIMING_TIMEOUT_T            0xF009
+#define TIMING_SETTING_T            0xF010
+#define TIMING_PERIODIC_SETTING_T   0xF011
+#define TIMING_DELETE_T             0xF012
+#define TIMING_SYNC_T               0xF01D
+#define TIMEZONE_SETTING_T          0xF01E
+#define UNIX_TIME_T                 0xF01F
+
+#define EL_TIMING_TIMEOUT_T 0x11 /* timer timeout event */
 
 #define VENDOR_MODEL_MSG_DFT_RETRY_TIMES 6
 #define VENDOR_MODEL_MSG_MAX_RETRY_TIMES 10
