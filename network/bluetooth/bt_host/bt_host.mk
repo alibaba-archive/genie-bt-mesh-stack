@@ -29,7 +29,9 @@ $(NAME)_SOURCES += hci_driver/ch6121_driver.c
 #GLOBAL_DEFINES += CONFIG_BT_DEBUG_LOG
 #GLOBAL_DEFINES += CONFIG_BT_DEBUG
 else
+ifeq ($(hci_h4),1)
 $(NAME)_SOURCES += hci_driver/h4.c
+endif
 endif
 bt_host_tinycrypt ?= 1
 ifeq ($(bt_host_tinycrypt),1)

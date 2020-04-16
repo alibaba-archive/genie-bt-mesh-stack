@@ -105,6 +105,8 @@
 #define  LIGHT_DRIVE_TYPE OUTPUT_PUSH_PULL
 #define CW_TEMP_MIN            (0x0320)    // 800
 #define CW_TEMP_MAX            (0x4E20)    // 20000
+#else
+#define LIGHT_DBG printf
 #endif
 #define MESH_ELEM_COUNT 1
 #define MESH_ELEM_STATE_COUNT MESH_ELEM_COUNT
@@ -171,6 +173,7 @@ static const cw_table_t lsd_cw_table[] = {
     {6300,{62085,3449}},
     {6400,{63810,1724}},
     {6500,{65535,0}},
+};
 
 #elif defined(BOARD_CH6121EVB)
 

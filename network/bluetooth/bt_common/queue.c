@@ -12,7 +12,7 @@ void k_queue_init(struct k_queue *queue)
     int     stat;
     stat = krhino_sem_create(&queue->sem, "ble", 0);
     if (stat) {
-        printf("buf queue exhausted\n");
+        //printf("buf queue exhausted\n");
     }
     sys_slist_init(&queue->data_q);
     sys_dlist_init(&queue->poll_events);

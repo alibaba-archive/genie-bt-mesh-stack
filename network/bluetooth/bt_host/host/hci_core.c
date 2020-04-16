@@ -2721,7 +2721,6 @@ static int le_init(void)
         net_buf_unref(rsp);
     }
 #endif
-    }
 
 #endif
 
