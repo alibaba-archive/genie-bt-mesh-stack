@@ -49,7 +49,7 @@ int bt_mesh_aes_decrypt(const uint8_t key[16], const uint8_t enc_data[16],
 int bt_mesh_aes_cmac(const uint8_t key[16], struct bt_mesh_sg *sg,
                      size_t sg_len, uint8_t mac[16])
 {
-#ifdef BOARD_CH6121EVB
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     struct bt_cmac_t ctx;
 
     if (bt_cmac_setup(&ctx, key)) {

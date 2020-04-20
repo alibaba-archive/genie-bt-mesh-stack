@@ -69,7 +69,7 @@ extern uint8_t get_program_image(void);
  */
 extern uint8_t change_program_image(uint8_t dfu_image);
 #endif
-#if defined(BOARD_CH6121EVB)
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
 extern int erase_dfu_flash(void);
 #endif
 #endif

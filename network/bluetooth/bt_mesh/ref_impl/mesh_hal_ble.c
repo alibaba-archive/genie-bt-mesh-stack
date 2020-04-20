@@ -9,7 +9,7 @@
 #include <conn.h>
 #include <gatt.h>
 #include <bluetooth.h>
-#ifdef BOARD_CH6121EVB
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
 
 #define SCHD_LOGD(...) //printf
 #define CONN_ADV_DATA_TIEMOUT   (6)

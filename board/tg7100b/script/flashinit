@@ -1,0 +1,37 @@
+# MK_GENERATED
+# |----------------------------------------------------------------------------|
+# | Ver |   Date   |  Releaser  | Comments                                     |
+# |----------------------------------------------------------------------------|
+# | 0.1 | 20170904 | Nick.Hu | Initial version                                 |
+# |----------------------------------------------------------------------------|
+# |----------------------------------------------
+# |Bootloader.mtb		        10000000	0.5
+# |Bootloader(ckdiff, rcvy)		10000200	21.5
+# |Tee OS		                10005800	20
+# |Factory settings		        1000A800	1
+# |Images.mtb		            1000AC00	3
+# |Ree OS(Prim)		            1000BC00	150
+# |Fota(misc)		            10031400	54
+# |KV Data		                1003E800	2
+# |OTP		                    4003F800	2
+# |----------------------------------------------
+
+#reset
+set $psr=0xc0000000
+
+##Load mtb
+download ihex verify=yes $(ProjectPath)generated/imtb.hex
+
+##Load bootloader binary
+download ihex verify=yes $(ProjectPath)generated/boot.hex
+
+##Load tee os binary
+download ihex verify=yes $(ProjectPath)generated/tee.hex
+
+##Load kv binary
+#download ihex verify=yes $(ProjectPath)generated/kv.hex
+
+##Load yoc binary
+#will download by elf, no need to run
+#download ihex verify=yes $(ProjectPath)generated/prim.hex
+

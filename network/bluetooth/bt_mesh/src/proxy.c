@@ -530,7 +530,7 @@ static void proxy_connected(bt_mesh_conn_t conn, u8_t err)
     /* Since we use ADV_OPT_ONE_TIME */
     proxy_adv_enabled = false;
 
-#ifdef BOARD_CH6121EVB
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     extern int bt_mesh_adv_stop();
     bt_mesh_adv_stop();
     bt_mesh_scan_enable();

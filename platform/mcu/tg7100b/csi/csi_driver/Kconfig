@@ -1,0 +1,15 @@
+if CHIP_VENDOR_CSKY
+source "csi/csi_driver/csky/common/Kconfig"
+endif
+
+if CHIP_VENDOR_SANECHIPS
+source "csi/csi_driver/sanechips/common/Kconfig"
+endif
+
+if CHIP_VENDOR_SILAN
+source "csi/csi_driver/silan/common/Kconfig"
+endif
+
+if CHIP_VENDOR_PHYPLUS
+source "csi/csi_driver/phyplus/common/Kconfig"
+endif

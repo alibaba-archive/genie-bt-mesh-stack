@@ -9,7 +9,7 @@
 #include <misc/dlist.h>
 
 struct k_queue {
-#if defined(BOARD_CH6121EVB)
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     _sem_t sem;
 #endif
     sys_slist_t data_q;

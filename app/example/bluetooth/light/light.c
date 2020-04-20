@@ -98,7 +98,7 @@
 #endif
 
 #define LIGHT_DBG(fmt, ...)  printf(fmt"\n", ##__VA_ARGS__)
-#ifdef BOARD_CH6121EVB
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
 #define  LIGHT_LEVEL_UP  20
 #define  LIGHT_DRIVE_TYPE OUTPUT_PUSH_PULL
 #define  LIGHT_LEVEL_DOWN 24
@@ -173,7 +173,7 @@ static const cw_table_t lsd_cw_table[] = {
     {6500,{65535,0}},
 };
 
-#elif defined(BOARD_CH6121EVB)
+#elif defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
 
 static const cw_table_t lsd_cw_table[] = {
     {2700,{0,100}},
@@ -530,7 +530,7 @@ static uint8_t lsd_led_update_last(uint8_t on, uint16_t actual, uint16_t tempera
 #if defined(BOARD_TC825X)
     pwm_cfg_c.freq = 300000;
     pwm_cfg_w.freq = 300000;
-#elif defined(BOARD_CH6121EVB)
+#elif defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     pwm_cfg_c.freq = 100; //Here, it is period in ch6121
     pwm_cfg_w.freq = 100;
 #endif
@@ -542,7 +542,7 @@ static uint8_t lsd_led_update_last(uint8_t on, uint16_t actual, uint16_t tempera
 #if defined(BOARD_TC825X) 
         pwm_cfg_c.duty_cycle = ((float)actual/65535)*((float)temp_pwm[0]/65535);
         pwm_cfg_w.duty_cycle = ((float)actual/65535)*((float)temp_pwm[1]/65535);
-#elif defined(BOARD_CH6121EVB)
+#elif defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
 //printf("%s, actual %d, temperature %d, pwm0 %d, pwm1 %d\n", __func__, actual, temperature, temp_pwm[0], temp_pwm[1]);
         //float duty_c = ((float)actual/65535.0)*((float)temp_pwm[0]/65535.0) * pwm_cfg_w.freq;
         //float duty_w = ((float)actual/65535.0)*((float)temp_pwm[1]/65535.0) * pwm_cfg_w.freq;
@@ -555,7 +555,7 @@ static uint8_t lsd_led_update_last(uint8_t on, uint16_t actual, uint16_t tempera
         pwm_cfg_w.duty_cycle = 0;
     }
 
-#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB)
+#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     err = hal_pwm_para_chg(&light_led_c,pwm_cfg_c);
     err += hal_pwm_para_chg(&light_led_w,pwm_cfg_w);
 #endif
@@ -678,7 +678,7 @@ static uint8_t led_ctrl(gpio_dev_t *led, bool on)
     if (!led)
         return -1;
 
-#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB)
+#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     on = !on;   // PCB is high valid
 #endif
 
@@ -694,7 +694,7 @@ static uint8_t led_ctrl(gpio_dev_t *led, bool on)
  */
 static u8_t leds_init(void)
 {
-#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB)
+#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     light_led_c.port = LIGHT_LEVEL_UP;
     light_led_c.config.duty_cycle = 0;
     light_led_c.config.freq = 300000;

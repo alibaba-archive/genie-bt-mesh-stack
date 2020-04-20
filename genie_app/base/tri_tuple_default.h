@@ -6,7 +6,7 @@
 #define TRI_TUPLE_DEFAULT_H_
 
 
-#if defined(BOARD_CH6121EVB)
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
 /* default UUID for identifying the unprovisioned node */
 #define DEFAULT_PID 10857
 #define DEFAULT_SECRET "7f5a348ad47baac74e48b8d6e980cb83"

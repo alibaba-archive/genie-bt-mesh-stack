@@ -5,11 +5,13 @@ board/*
 !board/pca10040
 !board/tc825x
 !board/ch6121evb
+!board/tg7100b
 platform/mcu/*
 !platform/mcu/include
 !platform/mcu/nrf52xxx
 !platform/mcu/tc32_825x
 !platform/mcu/ch6121
+!platform/mcu/tg7100b
 platform/arch/*
 !platform/arch/arm
 !platform/arch/tc32

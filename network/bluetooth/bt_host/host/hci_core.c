@@ -987,7 +987,7 @@ static void le_enh_conn_complete(struct bt_hci_evt_le_enh_conn_complete *evt)
             goto done;
         }
     }
-#ifndef BOARD_CH6121EVB
+#if !defined(BOARD_CH6121EVB) && !defined(BOARD_TG7100B)
     if (BT_FEAT_LE_DLE(bt_dev.le.features)) {
         err = hci_le_set_data_len(conn);
         if (!err) {

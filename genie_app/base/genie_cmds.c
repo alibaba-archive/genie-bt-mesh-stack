@@ -55,7 +55,7 @@ static void _reboot_handle(char *pwbuf, int blen, int argc, char **argv)
 
 void print_sw_info(void)
 {
-#if defined(BOARD_CH6121EVB)
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
     printf("DEVICE:%s\n", CONFIG_BT_DEVICE_NAME);
     printf("SW VER:%08x\n", PROJECT_SW_VERSION);
     printf("SDK:v%s\n", APP_SDK_VERSION);

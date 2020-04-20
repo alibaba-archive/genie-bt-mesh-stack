@@ -28,6 +28,8 @@ $(NAME)_SOURCES += hci_driver/ch6121_driver.c
 
 #GLOBAL_DEFINES += CONFIG_BT_DEBUG_LOG
 #GLOBAL_DEFINES += CONFIG_BT_DEBUG
+else ifeq ($(HOST_MCU_FAMILY),tg7100b)
+$(NAME)_SOURCES += hci_driver/tg7100b_driver.c
 else
 ifeq ($(hci_h4),1)
 $(NAME)_SOURCES += hci_driver/h4.c
@@ -58,7 +60,9 @@ endif
 
 ## BLE debug log general control macro (Note: still to be affected by DEBUG)
 ## Enable below macros if BLE stack debug needed
-ifneq ($(HOST_MCU_FAMILY),ch6121)
+ifeq ($(HOST_MCU_FAMILY),ch6121)
+else ifeq ($(HOST_MCU_FAMILY),tg7100b)
+else
 GLOBAL_DEFINES += CONFIG_BT_DEBUG_LOG
 GLOBAL_DEFINES += CONFIG_BT_DEBUG
 endif

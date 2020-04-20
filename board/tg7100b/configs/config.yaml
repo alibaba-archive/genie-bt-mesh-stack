@@ -1,0 +1,26 @@
+mtb_version: 4
+chip: tg7100b
+diff:
+  digest_type: SHA1
+  signature_type: RSA1024
+  fota_version: 0
+  ram_buf: 50      #DEC     KB   ( max ram need)
+  flash_buf: 16     #DEC    KB   ( buffer size)
+  flash_sector: 4096 #DEC   byte ( flash sector)
+  diff_mode: 010    #BIN
+  double_control: 1
+flash:
+  base_address: 0x11000000
+  run_base_address: 0x1FFF3800 # base address of Storage
+  sector: 4096       # Bytes
+  size: 524288      # $(sector count) * sector
+partitions:
+  - { name: bomtb,  address: 0x11002100, size: 0x001000 }
+  - { name: FCDS,   address: 0x11004000, size: 0x001000 }
+  - { name: imtb,   address: 0x11005000, size: 0x002000 }
+  - { name: boot,   address: 0x11009000, size: 0x008000, load_addr: 0x2000A800}
+  - { name: jumptb, address: 0x11011000, size: 0x001000, load_addr: 0x1FFF0800, update: FULL, verify: true }
+  - { name: prim,   address: 0x11012000, size: 0x012000, load_addr: 0x1fff4800, update: FULL, verify: true }
+  - { name: xprim,  address: 0x1105D000, size: 0x1D000, update: FULL, verify: true }
+  - { name: misc,   address: 0x11024000, size: 0x39000 }
+  - { name: kv,     address: 0x1107A000, size: 0x6000 }
