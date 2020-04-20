@@ -2719,8 +2719,8 @@ static int le_init(void)
         bt_dev.le.rl_size = rp->rl_size;
 
         net_buf_unref(rsp);
-    }
 #endif
+    }
 
 #endif
 

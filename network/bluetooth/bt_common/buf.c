@@ -350,7 +350,7 @@ void net_buf_unref(struct net_buf *buf)
 {
 	NET_BUF_ASSERT(buf);
 #ifdef CONFIG_BT_MESH
-	unsigned int key;
+	unsigned int key = 0;
 #endif
 
 	while (buf) {

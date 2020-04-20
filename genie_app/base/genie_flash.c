@@ -986,6 +986,7 @@ void cmd_handle_flash_sys(char *pwbuf, int blen, int argc, char **argv)
     } else if(!strcmp(argv[1], "rst")) {
         printk("delete mesh\n");
         genie_flash_reset_system();
+        aos_reboot();
     } else {
         printk("sys cmd error\n");
     }

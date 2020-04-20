@@ -1195,6 +1195,7 @@ int bt_conn_le_param_update(struct bt_conn *conn, struct bt_le_conn_param *param
     return bt_l2cap_update_conn_param(conn, param);
 }
 
+int bt_le_set_auto_conn(bt_addr_le_t *addr, const struct bt_le_conn_param *param);
 int bt_conn_disconnect(struct bt_conn *conn, u8_t reason)
 {
     /* Disconnection is initiated by us, so auto connection shall

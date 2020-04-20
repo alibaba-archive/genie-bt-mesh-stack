@@ -34,6 +34,9 @@ struct bt_mesh_adv {
     u8_t      busy: 1;
     u8_t      count: 3;
     u8_t      padding: 2;
+#ifdef GENIE_ULTRA_PROV
+    u8_t tiny_adv;
+#endif
     u16_t     adv_int;
     union {
         /* Address, used e.g. for Friend Queue messages */

@@ -9,11 +9,13 @@
 
 void k_queue_init(struct k_queue *queue)
 {
+#if defined(BOARD_CH6121EVB)
     int     stat;
     stat = krhino_sem_create(&queue->sem, "ble", 0);
     if (stat) {
-        //printf("buf queue exhausted\n");
+        printf("buf queue exhausted\n");
     }
+#endif
     sys_slist_init(&queue->data_q);
     sys_dlist_init(&queue->poll_events);
 }
@@ -25,19 +27,25 @@ static inline void handle_poll_events(struct k_queue *queue, u32_t state)
 
 void k_queue_cancel_wait(struct k_queue *queue)
 {
+#if defined(BOARD_CH6121EVB)
     krhino_sem_give(&queue->sem);
+#endif
     handle_poll_events(queue, K_POLL_STATE_NOT_READY);
 }
 
 static void queue_insert(struct k_queue *queue, void *prev, void *data)
 {
     sys_snode_t *node = (sys_snode_t *)data;
+#if defined(BOARD_CH6121EVB)
     unsigned int key;
     key = irq_lock();
+#endif
     node->next = NULL;
     sys_slist_insert(&queue->data_q, prev, data);
+#if defined(BOARD_CH6121EVB)
     irq_unlock(key);
     krhino_sem_give(&queue->sem);
+#endif
     handle_poll_events(queue, K_POLL_STATE_DATA_AVAILABLE);
 }
 
@@ -64,6 +72,7 @@ void k_queue_append_list(struct k_queue *queue, void *head, void *tail)
 
 void *k_queue_get(struct k_queue *queue, s32_t timeout)
 {
+#if defined(BOARD_CH6121EVB)
     int ret;
     void        *msg = NULL;
     tick_t       ticks;
@@ -95,6 +104,9 @@ void *k_queue_get(struct k_queue *queue, s32_t timeout)
     msg = sys_slist_get(&queue->data_q);
     irq_unlock(key);
     return msg;
+#else
+    return sys_slist_get(&queue->data_q);
+#endif
 }
 
 int k_queue_is_empty(struct k_queue *queue)

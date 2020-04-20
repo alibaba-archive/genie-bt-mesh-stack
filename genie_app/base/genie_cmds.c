@@ -62,11 +62,11 @@ void print_sw_info(void)
     printf("OS:v%d\n", SYSINFO_OS_VERSION);
     printf("PROUDUCT:%s\n", SYSINFO_PRODUCT_MODEL);
 #else
-    BT_INFO("DEVICE:%s\n", CONFIG_BT_DEVICE_NAME);
-    BT_INFO("SW VER:%08x\n", PROJECT_SW_VERSION);
-    BT_INFO("SDK:v%s\n", APP_SDK_VERSION);
-    BT_INFO("OS:v%d\n", SYSINFO_OS_VERSION);
-    BT_INFO("PROUDUCT:%s\n", SYSINFO_PRODUCT_MODEL);
+    BT_INFO("DEVICE:%s", CONFIG_BT_DEVICE_NAME);
+    BT_INFO("SW VER:%08x", PROJECT_SW_VERSION);
+    BT_INFO("SDK:v%s", APP_SDK_VERSION);
+    BT_INFO("OS:v%d", SYSINFO_OS_VERSION);
+    BT_INFO("PROUDUCT:%s", SYSINFO_PRODUCT_MODEL);
 #endif
 }
 
@@ -131,11 +131,6 @@ static void _send_msg(char *pwbuf, int blen, int argc, char **argv)
         printk("Unable to send\n");
     }
 }
-
-struct bt_mesh_sg {
-    const void *data;
-    size_t len;
-};
 
 static const struct cli_command genie_cmds[] = {
     {"get_tt", "get tri truple", _get_tri_tuple},

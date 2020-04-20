@@ -86,7 +86,6 @@ u8_t stringtohex(char *str, u8_t *out, u8_t count)
 {
     u8_t i = 0, j = 0;
     u8_t n = 0;
-    u32_t num = 0;
 
     memset(out , 0, count);
     if(strlen(str) != count<<1)

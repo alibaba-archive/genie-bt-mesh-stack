@@ -24,6 +24,7 @@
 #include "mesh_hal_ble.h"
 #include "mesh/cfg_srv.h"
 #include "mesh.h"
+#include "prov.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_EVENT)
 #include "common/log.h"
@@ -31,7 +32,7 @@
 extern void user_event(E_GENIE_EVENT event, void *p_arg);
 extern elem_state_t g_elem_state[];
 
-
+static bool g_genie_provisioned = 0;
 static uint8_t g_in_prov = 0;
 static uint8_t g_prov_enable = 0;
 const char *genie_event_str[] = {
@@ -85,9 +86,13 @@ const char *genie_event_str[] = {
 
 static void _genie_reset_prov(void)
 {
+    g_genie_provisioned = 0;
     /* reset prov */
     bt_mesh_reset();
     genie_flash_reset_system();
+#ifdef GENIE_ULTRA_PROV
+    ultra_prov_free();
+#endif
 }
 
 static E_GENIE_EVENT _genie_event_handle_sw_reset(void)
@@ -220,6 +225,7 @@ static E_GENIE_EVENT _genie_event_handle_prov_timeout(void)
 
 static E_GENIE_EVENT _genie_event_handle_prov_success(void)
 {
+    g_genie_provisioned = 1;
 #ifdef CONFIG_MESH_MODEL_VENDOR_SRV
     return GENIE_EVT_SDK_STATE_SYNC;
 #else
@@ -445,6 +451,11 @@ static E_GENIE_EVENT _genie_event_handle_order_msg(vendor_attr_data_t *attr_data
 
 #endif
 #endif
+
+bool genie_is_provisioned(void)
+{
+    return g_genie_provisioned;
+}
 
 void genie_event(E_GENIE_EVENT event, void *p_arg)
 {

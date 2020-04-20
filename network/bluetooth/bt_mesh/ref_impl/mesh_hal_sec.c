@@ -14,6 +14,8 @@
 #include <tinycrypt/aes.h>
 #include <tinycrypt/cmac_mode.h>
 #include <tinycrypt/ccm_mode.h>
+#include <zephyr.h>
+#include "ecc.h"
 
 int bt_mesh_rand(void *buf, size_t len)
 {
@@ -24,7 +26,8 @@ int bt_mesh_aes_encrypt(const uint8_t key[16], const uint8_t plaintext[16],
                         uint8_t enc_data[16])
 {
 #if BOARD_TC825X    // telink confirm later
-    tn_aes_128(key, plaintext, enc_data);   // use hardware AES. already disable irq inside.
+    extern void tn_aes_128(unsigned char *key, unsigned char *plaintext, unsigned char *result);
+    tn_aes_128((unsigned char *)key, (unsigned char *)plaintext, enc_data);   // use hardware AES. already disable irq inside.
     return 0;
 #else
     return bt_encrypt_be(key, plaintext, enc_data);
@@ -35,7 +38,8 @@ int bt_mesh_aes_decrypt(const uint8_t key[16], const uint8_t enc_data[16],
                         uint8_t dec_data[16])
 {
 #if BOARD_TC825X    // telink confirm later
-    aes_ecb_decryption(key, enc_data, dec_data);   // use hardware AES. already disable irq inside.
+    extern void aes_ecb_decryption(uint8_t *key, uint8_t *encrypted_data, uint8_t *decrypted_data);
+    aes_ecb_decryption((uint8_t *)key, (uint8_t *)enc_data, dec_data);   // use hardware AES. already disable irq inside.
     return 0;
 #else
     return bt_decrypt_be(key, enc_data, dec_data);
@@ -98,7 +102,7 @@ int bt_mesh_dh_key_gen(const uint8_t remote_pk[64], bt_mesh_dh_key_cb_t cb)
 
 int bt_mesh_pub_key_gen(struct bt_mesh_pub_key_cb *cb)
 {
-    return bt_pub_key_gen(cb);
+    return bt_pub_key_gen((struct bt_pub_key_cb *)cb);
 }
 #else
 int bt_mesh_rand(void *buf, size_t len)

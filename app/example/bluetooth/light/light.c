@@ -97,16 +97,14 @@
 #define CW_TEMP_MAX            (0x4E20)    // 20000
 #endif
 
-#ifdef BOARD_CH6121EVB
 #define LIGHT_DBG(fmt, ...)  printf(fmt"\n", ##__VA_ARGS__)
+#ifdef BOARD_CH6121EVB
 #define  LIGHT_LEVEL_UP  20
 #define  LIGHT_DRIVE_TYPE OUTPUT_PUSH_PULL
 #define  LIGHT_LEVEL_DOWN 24
 #define  LIGHT_DRIVE_TYPE OUTPUT_PUSH_PULL
 #define CW_TEMP_MIN            (0x0320)    // 800
 #define CW_TEMP_MAX            (0x4E20)    // 20000
-#else
-#define LIGHT_DBG printf
 #endif
 #define MESH_ELEM_COUNT 1
 #define MESH_ELEM_STATE_COUNT MESH_ELEM_COUNT
@@ -362,7 +360,7 @@ void user_init()
 
 void led_flash(uint8_t times)
 {
-    BT_DBG("%s %d\n", times);
+    BT_DBG("%d\n", times);
     //aos_msleep(times * 1000);
 }
 
@@ -472,7 +470,7 @@ static void _led_set(uint8_t elem_index, uint8_t on, uint16_t actual, uint16_t t
     static uint16_t last_acual = 0;
     static uint16_t last_temperature = 0;
 
-    LIGHT_DBG("%s, %d,%d,%d", __func__, on, actual, temperature);
+    //LIGHT_DBG("%s, %d,%d,%d", __func__, on, actual, temperature);
     if(last_onoff != on) {
         last_onoff = on;
         lsd_led_update_last(last_onoff,last_acual, last_temperature);

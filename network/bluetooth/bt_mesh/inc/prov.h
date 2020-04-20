@@ -27,5 +27,13 @@ void bt_mesh_prov_reset(void);
 
 const struct bt_mesh_prov *bt_mesh_prov_get(void);
 
+#ifdef GENIE_ULTRA_PROV
+void ultra_prov_free(void);
+void ultra_prov_recv_random(uint8_t *buf);
+void ultra_prov_recv_prov_data(uint8_t *buf);
+uint8_t check_ultra_prov_adv(uint8_t *data);
+#endif
+
+
 #endif
 

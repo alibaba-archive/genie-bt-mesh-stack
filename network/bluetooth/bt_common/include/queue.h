@@ -9,7 +9,9 @@
 #include <misc/dlist.h>
 
 struct k_queue {
+#if defined(BOARD_CH6121EVB)
     _sem_t sem;
+#endif
     sys_slist_t data_q;
     sys_dlist_t poll_events;
 };

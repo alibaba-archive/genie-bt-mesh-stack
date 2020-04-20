@@ -131,7 +131,15 @@ static inline void adv_send(struct net_buf *buf)
     BT_DBG("count %u interval %ums, %ums, %ums duration %ums",
            BT_MESH_ADV(buf)->count + 1, adv_int, adv_int, BT_MESH_ADV(buf)->adv_int, duration);
 
+#ifdef GENIE_ULTRA_PROV
+    if(BT_MESH_ADV(buf)->tiny_adv == 1) {
+        ad.type = 0xFF;
+    } else {
+        ad.type = adv_type[BT_MESH_ADV(buf)->type];
+    }
+#else
     ad.type = adv_type[BT_MESH_ADV(buf)->type];
+#endif
     ad.data_len = buf->len;
     ad.data = buf->data;
 
@@ -189,7 +197,15 @@ static inline int adv_send_multi(struct net_buf *buf)
     BT_DBG("count %u interval %ums, interval buff %ums,duration %ums",
            BT_MESH_ADV(buf)->count + 1, adv_int, BT_MESH_ADV(buf)->adv_int, duration);
 
+#ifdef GENIE_ULTRA_PROV
+    if(BT_MESH_ADV(buf)->tiny_adv == 1) {
+        ad.type = 0xFF;
+    } else {
+        ad.type = adv_type[BT_MESH_ADV(buf)->type];
+    }
+#else
     ad.type = adv_type[BT_MESH_ADV(buf)->type];
+#endif
     ad.data_len = buf->len;
     ad.data = buf->data;
 
@@ -305,8 +321,7 @@ static void adv_thread(void *p1, void *p2, void *p3)
 
                 timeout = bt_mesh_proxy_adv_start();
                 time_start = k_uptime_get_32();
-                BT_DBG("Proxy Advertising up to %d ms",
-                       timeout);
+                BT_DBG("Proxy Advertising up to %d ms", timeout);
                 while (buf == NULL) {
                     buf = net_buf_get(&adv_queue, timeout);
                     if (buf || timeout == K_NO_WAIT ||
@@ -457,6 +472,29 @@ static void bt_mesh_scan_cb(const bt_mesh_addr_le_t *addr, s8_t rssi,
             }
         } else if (adv_type == BT_LE_ADV_IND) {
             switch (type) {
+#ifdef GENIE_ULTRA_PROV
+                case 0xFF:
+                {
+                    uint16_t company = net_buf_simple_pull_be16(buf);
+                    if(company == 0x01A8) {
+                        uint8_t fixed_byte = net_buf_simple_pull_u8(buf);
+                        if(fixed_byte == 0x0D) {
+                            uint8_t prov_cmd = net_buf_simple_pull_u8(buf);
+                            switch(prov_cmd) {
+                                case 0x00:
+                                    ultra_prov_recv_random(buf->data);
+                                    break;
+                                case 0x02:
+                                    ultra_prov_recv_prov_data(buf->data);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+                    break;
+                }
+#endif
                 default:
                     break;
             }

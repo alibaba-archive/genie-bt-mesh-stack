@@ -207,7 +207,7 @@ void k_timer_start(k_timer_t *timer, uint32_t timeout)
     ASSERT(timer, "timer is NULL");
     BT_DBG("timer %p,timeout %u", timer, timeout);
 
-    k_timer_stop(&timer->timer);
+    k_timer_stop(timer);
 
     timer->timeout  = timeout;
     timer->start_ms = (uint32_t)aos_now_ms();
@@ -299,11 +299,11 @@ void k_event_set(kevent_t *event, uint32_t flags)
 {
     kstat_t ret;
 
-    krhino_event_set(event, flags, RHINO_OR);
+    ret = krhino_event_set(event, flags, RHINO_OR);
     if (ret) {
         BT_ERR("event set failed %d", ret);
     }
-    return ret;
+    //return ret;
 }
 
 

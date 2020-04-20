@@ -14,7 +14,7 @@ static void k_work_submit_to_queue(struct k_work_q *work_q, struct k_work *work)
     sys_snode_t *node = NULL;
     struct k_work *delayed_work = NULL;
     struct k_work *prev_delayed_work = NULL;
-    uint32_t now = k_uptime_get_32();
+    //uint32_t now = k_uptime_get_32();
 
     if (!atomic_test_and_set_bit(work->flags, K_WORK_STATE_PENDING)) {
         SYS_SLIST_FOR_EACH_NODE(&g_work_queue.queue.data_q, node) {
@@ -79,7 +79,7 @@ int k_delayed_work_submit(struct k_delayed_work *work, uint32_t delay)
     work->work.timeout = delay;
     k_work_submit_to_queue(&g_work_queue, (struct k_work *)work);
 
-done:
+//done:
     irq_unlock(key);
     return err;
 }

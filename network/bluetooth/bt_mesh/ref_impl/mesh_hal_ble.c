@@ -464,7 +464,7 @@ int bt_mesh_multi_adv_stop(int instant_id)
 
 int bt_mesh_scan_start(const struct bt_mesh_le_scan_param *param, bt_mesh_le_scan_cb_t cb)
 {
-    return bt_le_scan_start((const struct bt_le_scan_param *)param, cb);
+    return bt_le_scan_start((const struct bt_le_scan_param *)param, (bt_le_scan_cb_t *)cb);
 }
 
 int bt_mesh_scan_stop(void)
@@ -478,8 +478,8 @@ struct bt_conn_cb conn_callbacks;
 
 void bt_mesh_conn_cb_register(struct bt_mesh_conn_cb *cb)
 {
-    conn_callbacks.connected = cb->connected;
-    conn_callbacks.disconnected = cb->disconnected;
+    conn_callbacks.connected = (void *)cb->connected;
+    conn_callbacks.disconnected = (void *)cb->disconnected;
     bt_conn_cb_register(&conn_callbacks);
 }
 

@@ -98,4 +98,8 @@ void genie_ais_adv_init(uint8_t ad_structure[14]);
  */
 void genie_tri_tuple_set_silent_adv(void);
 
+#ifdef GENIE_ULTRA_PROV
+void ultra_prov_get_auth(const uint8_t random_hex[16], const uint8_t key[16], uint8_t cfm[16]);
+#endif
+
 #endif/*--_TRI_TUPLE_H_--*/

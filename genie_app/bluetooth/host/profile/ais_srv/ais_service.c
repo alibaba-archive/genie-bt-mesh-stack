@@ -8,7 +8,7 @@
 #include "multi_adv.h"
 #include "ali_dfu_port.h"
 
-#define BT_DBG_ENABLED 1//IS_ENABLED(CONFIG_BT_MESH_DEBUG_OTA)
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_OTA)
 #include "common/log.h"
 
 #define AIS_OTA_AUTH_TIMEOUT 10000      //10s

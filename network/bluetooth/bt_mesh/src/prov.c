@@ -1644,3 +1644,223 @@ void bt_mesh_prov_reset(void)
         prov->reset();
     }
 }
+
+#ifdef GENIE_ULTRA_PROV
+uint8_t *p_prov_data_key = NULL;
+uint8_t *p_ultra_prov_devkey = NULL;
+uint8_t *p_confirm;
+#include <tinycrypt/sha256.h>
+#include <tinycrypt/constants.h>
+
+extern uint8_t g_mac[6];
+
+
+static int _ultra_prov_send(uint8_t type, uint8_t *p_msg, uint8_t len)
+{
+    struct net_buf *buf;
+
+    buf = bt_mesh_adv_create(0, 0, 0, BUF_TIMEOUT);
+    if (!buf) {
+        BT_ERR("Out of provisioning buffers");
+        return -ENOBUFS;
+    }
+
+    BT_MESH_ADV(buf)->tiny_adv = 1;
+
+    net_buf_add_be16(buf, CONFIG_CID_TAOBAO);
+    //VID
+    net_buf_add_u8(buf, 0x0d);
+    net_buf_add_u8(buf, type);
+    net_buf_add_mem(buf, p_msg, len);
+
+    BT_DBG("send %s", bt_hex(buf->data, buf->len));
+
+    bt_mesh_adv_send(buf, NULL, NULL);
+    net_buf_unref(buf);
+
+    return 0;
+}
+
+void ultra_prov_free(void)
+{
+    k_free(p_prov_data_key);
+    k_free(p_ultra_prov_devkey);
+    k_free(p_confirm);
+    p_prov_data_key = NULL;
+}
+
+void ultra_prov_recv_random(uint8_t *buf)
+{
+    uint8_t tmp[48];
+    uint8_t random_a[17];
+    uint8_t random_b[17];
+    uint8_t cfm_key[32];
+
+    int ret;
+    struct tc_sha256_state_struct sha256_ctx;
+
+    if(buf[0] != g_mac[4] || buf[1] != g_mac[5]) {
+        return;
+    }
+    buf += 2;
+
+    genie_event(GENIE_EVT_SDK_MESH_PROV_START, NULL);
+
+    if(p_prov_data_key == NULL) {
+        p_prov_data_key = k_malloc(32);
+        p_ultra_prov_devkey = k_malloc(32);
+        p_confirm = k_malloc(16);
+        hextostring(buf, (char *)random_a, 8);
+        random_a[16] = 0;
+        hextostring(buf+8, (char *)random_b, 8);
+        random_b[16] = 0;
+
+        sprintf((char *)tmp, "%s%sConfirmationKey", random_a, random_b);
+
+        BT_DBG("string %s\n", tmp);
+
+        /* calculate the sha256 of random and
+         * fetch the top 16 bytes as confirmationKey
+         */
+        ret = tc_sha256_init(&sha256_ctx);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 init fail\n");
+        }
+
+        ret = tc_sha256_update(&sha256_ctx, tmp, 47);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 udpate fail\n");
+        }
+
+        ret = tc_sha256_final(cfm_key, &sha256_ctx);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 final fail\n");
+        } else {
+            BT_DBG("cfmKey: %s", bt_hex(cfm_key, 16));
+        }
+
+        //calc cloud cfm
+        memcpy(tmp, buf+8, 8);
+        memcpy(tmp+8, buf, 8);
+        ultra_prov_get_auth(tmp, cfm_key, p_confirm);
+
+        hextostring(p_confirm, (char *)tmp, 16);
+        sprintf((char *)tmp+32, "SessionKey");
+        BT_DBG("tmp %s\n", tmp);
+        ret = tc_sha256_init(&sha256_ctx);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 init fail\n");
+        }
+
+        ret = tc_sha256_update(&sha256_ctx, tmp, 42);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 udpate fail\n");
+        }
+
+        ret = tc_sha256_final(p_prov_data_key, &sha256_ctx);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 final fail\n");
+        } else {
+            BT_DBG("provKkey: %s", bt_hex(p_prov_data_key, 22));
+        }
+
+        //calc dev key
+        sprintf((char *)tmp+32, "DeviceKey");
+        BT_DBG("tmp %s\n", tmp);
+        ret = tc_sha256_init(&sha256_ctx);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 init fail\n");
+        }
+
+        ret = tc_sha256_update(&sha256_ctx, tmp, 41);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 udpate fail\n");
+        }
+
+        ret = tc_sha256_final(p_ultra_prov_devkey, &sha256_ctx);
+        if (ret != TC_CRYPTO_SUCCESS) {
+            BT_ERR("sha256 final fail\n");
+        } else {
+            BT_DBG("devKey: %s", bt_hex(p_ultra_prov_devkey, 16));
+        }
+
+        //calc dev cfm
+        //memset(tmp, 0, sizeof(tmp));
+        memcpy(tmp, buf, 16);
+        ultra_prov_get_auth(tmp, cfm_key, p_confirm);
+    }
+
+    tmp[0] = g_mac[4];
+    tmp[1] = g_mac[5];
+    memcpy(tmp+2, p_confirm, 16);
+
+    _ultra_prov_send(0x01, tmp, 18);
+}
+
+void ultra_prov_recv_prov_data(uint8_t *buf)
+{
+    uint8_t i = 0;
+    while(i < 22) {
+        buf[i] ^= p_prov_data_key[i];
+        i++;
+    }
+    BT_DBG("%s", bt_hex(buf, 22));
+
+    if(buf[0] != g_mac[4] || buf[1] != g_mac[5]) {
+        return;
+    }
+    buf += 2;
+
+    if(p_ultra_prov_devkey != NULL) {
+        uint16_t net_idx;
+        uint8_t flags;
+        uint32_t iv_index;
+        uint16_t addr;
+
+        flags = buf[0];
+        net_idx = 0;
+        iv_index = buf[17];
+        addr = sys_get_be16(&buf[18]);
+
+        BT_DBG("net_idx %u iv_index 0x%08x, addr 0x%04x",
+               net_idx, iv_index, addr);
+
+        genie_event(GENIE_EVT_SDK_MESH_PROV_DATA, &addr);
+        bt_mesh_provision(buf+1, net_idx, flags, iv_index, 0, addr, p_ultra_prov_devkey);
+        k_free(p_ultra_prov_devkey);
+        p_ultra_prov_devkey = NULL;
+    }
+    _ultra_prov_send(0x03, g_mac, 6);
+}
+
+uint8_t check_ultra_prov_adv(uint8_t *data)
+{
+    if(genie_is_provisioned()) {
+        return 0;
+    }
+
+    if((data[1] == 0x01 && data[4] == 0xFF) || data[1] == 0xFF) {
+        /*
+        len = 23/27
+        ADType = 0xFF
+        company = a8 01
+        0d fixed
+        prov type = 00/02
+        */
+        if(data[1] == 0x01) {
+            if((data[3] == 0x17 || data[3] == 0x1B) &&
+                data[5] == 0x01 && data[6] == 0xA8 && data[7] == 0x0D &&
+                (data[8] == 0x00 || data[8] == 0x02)) {
+                return 1;
+            }
+        } else {
+            if((data[0] == 0x17 || data[0] == 0x1B) &&
+                data[2] == 0x01 && data[3] == 0xA8 && data[4] == 0x0D &&
+                (data[5] == 0x00 || data[5] == 0x02)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+#endif

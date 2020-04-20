@@ -133,7 +133,7 @@ void user_init()
 
 void led_flash(uint8_t times)
 {
-    printk("%s %d\n", times);
+    printk("%d\n", times);
 }
 
 u16_t vendor_model_msg_handle(vnd_model_msg *p_msg)

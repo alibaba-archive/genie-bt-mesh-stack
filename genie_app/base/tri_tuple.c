@@ -98,8 +98,10 @@ uint8_t *genie_tri_tuple_get_uuid(void)
     g_uuid[13] = UNPROV_ADV_FEATURE_AUTO_BIND_MODEL_SUB;
 
     g_uuid[14] = UNPROV_ADV_FLAG_GENIE_MESH_STACK;
-
-    BT_DBG("uuid: %s\n", bt_hex(g_uuid, 16));
+#ifdef GENIE_ULTRA_PROV
+    g_uuid[14] |= UNPROV_ADV_FEATURE_ULTRA_PROV;
+#endif
+    BT_DBG("uuid: %s", bt_hex(g_uuid, 16));
 
     return g_uuid;
 }
@@ -305,6 +307,23 @@ void genie_tri_tuple_show(void)
     printk("\n" F_END);
 }
 
+#ifdef GENIE_ULTRA_PROV
+#include "mesh_crypto.h"
+
+void ultra_prov_get_auth(const uint8_t random_hex[16], const uint8_t key[16], uint8_t cfm[16])
+{
+#ifdef GENIE_OLD_AUTH
+    genie_tri_tuple_get_auth();
+#else
+    genie_tri_tuple_get_auth(random_hex);
+#endif
+
+    //calc dev cfm
+    bt_mesh_prov_conf(key, random_hex, g_auth, cfm);
+
+    BT_DBG("cfm: %s", bt_hex(cfm, 16));
+}
+#endif
 
 
 

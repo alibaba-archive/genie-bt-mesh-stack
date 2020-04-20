@@ -3,7 +3,7 @@ NAME := genie_app
 ble = 1
 
 $(NAME)_MBINS_TYPE := kernel
-$(NAME)_VERSION := 1.0.3
+$(NAME)_VERSION := 1.0.4
 $(NAME)_SUMMARY := Genie mesh application.
 
 GLOBAL_CFLAGS += -DSYSINFO_BUILD_TIME=\"$(CURRENT_TIME)\"

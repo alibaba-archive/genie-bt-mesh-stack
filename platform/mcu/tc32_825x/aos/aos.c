@@ -207,6 +207,10 @@ _attribute_ram_code_ int  blc_ll_procScanPkt_aos(u8 *raw_pkt, u8 *new_pkt, u32 t
         }
     }else{
         //printf("--other pkt, type: %d--\n", adv_type);
+#ifdef GENIE_ULTRA_PROV
+        extern uint8_t check_ultra_prov_adv(uint8_t *data);
+        return check_ultra_prov_adv(pAdv->data);
+#endif
     }
     return 0;
 }

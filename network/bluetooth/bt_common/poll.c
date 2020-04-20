@@ -206,7 +206,7 @@ void event_callback(uint8_t event_type)
 {
     sys_dnode_t *event_next;
     sys_dnode_t *event_next_save;
-    struct k_poll_event *events;
+    //struct k_poll_event *events;
     unsigned int key;
 
     key = irq_lock();

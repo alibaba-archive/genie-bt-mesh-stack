@@ -5,6 +5,7 @@
 #ifndef _GENIE_EVENT_H_
 #define _GENIE_EVENT_H_
 
+#include <zephyr.h>
 
 typedef enum {
 /* !!!START!!! --- Don't add new ID before this one */
@@ -80,5 +81,11 @@ extern const char *genie_event_str[];
  * @param[in] args refers to the additional information for the event.
  */
 void genie_event(E_GENIE_EVENT event, void *args);
+
+/**
+* @brief Get the prov status of genie mesh stack.
+* @return the prov status.
+*/
+bool genie_is_provisioned(void);
 
 #endif // _GENIE_EVENT_H_
