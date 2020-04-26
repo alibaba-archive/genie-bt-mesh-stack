@@ -817,7 +817,7 @@ static struct bt_gatt_service _ais_srv = BT_GATT_SERVICE(_ais_srv_attrs);
 static u8_t g_ais_adv_data[14] = {
     0xa8, 0x01, //taobao
     0x85,       //vid & sub
-    0x35,       //FMSK
+    0x15,       //FMSK
     0x15, 0x11, 0x22, 0x33,             //PID
     0xAA, 0xBB, 0xCC, 0x11, 0x22, 0x33  //MAC
 };
@@ -848,7 +848,7 @@ void bt_gatt_adv_init(void)
 #ifdef CONFIG_BT_MESH_MULTIADV
     {
         int err;
-        genie_ais_adv_init(g_ais_adv_data);
+        genie_ais_adv_init(g_ais_adv_data, 0);
 
 //        printk("%s multi adv start\n");
         err = bt_le_multi_adv_start(&fast_adv_param, g_ais_adv, ARRAY_SIZE(g_ais_adv), g_ais_sd, ARRAY_SIZE(g_ais_sd), &g_multiadv_instant_id);

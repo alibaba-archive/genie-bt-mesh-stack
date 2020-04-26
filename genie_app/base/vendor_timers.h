@@ -1,6 +1,6 @@
-//
-// Created by sanyi on 2019/12/25.
-//
+/*
+ * Copyright (C) 2018-2020 Alibaba Group Holding Limited
+ */
 
 #ifndef _VENDOR_TIMER_H
 #define _VENDOR_TIMER_H

@@ -89,8 +89,9 @@ void genie_ais_reset(void);
 /**
  * @brief init the ais advertising.
  * @param[inout] the phoint of advertising data
+ * @param[in] is silent adv or not
  */
-void genie_ais_adv_init(uint8_t ad_structure[14]);
+void genie_ais_adv_init(uint8_t ad_structure[14], uint8_t is_silent);
 #endif
 
 /**

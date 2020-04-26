@@ -108,7 +108,7 @@ static int gatt_register(struct bt_gatt_service *svc)
 populate:
 	/* Populate the handles and append them to the list */
 	for (; attrs && count; attrs++, count--) {
-		if (!attrs->handle) {
+		if (!attrs->handle || attrs->handle <= handle) {
 			/* Allocate handle if not set already */
 			attrs->handle = ++handle;
 		} else if (attrs->handle > handle) {

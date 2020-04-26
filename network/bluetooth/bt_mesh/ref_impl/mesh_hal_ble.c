@@ -432,6 +432,9 @@ int bt_mesh_adv_start(const struct bt_mesh_le_adv_param *param,
                            (const struct bt_data *)sd, sd_len);
 }
 
+extern int bt_le_adv_start_instant(const struct bt_le_adv_param *param,
+                                        const uint8_t *ad_data, size_t ad_len,
+                                        const uint8_t *sd_data, size_t sd_len);
 int bt_mesh_adv_start_instant(const struct bt_mesh_le_adv_param *param,
                            const uint8_t *ad_data, size_t ad_len,
                            const uint8_t *sd_data, size_t sd_len)

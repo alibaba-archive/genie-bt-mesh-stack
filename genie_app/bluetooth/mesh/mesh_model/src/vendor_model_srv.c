@@ -40,9 +40,15 @@ struct bt_mesh_model_pub g_vendor_model_alibaba_pub = {
  *  @return tid with range of [0x80, 0xff]
  */
 u8_t _vendor_model_msg_gen_tid(void) {
-    static u8_t tid = 0x80;
+    static u8_t tid = 0xFF;
 
-    return (tid++ | 0x80);
+    if(tid == 0xFF) {
+        bt_rand(&tid, 1);
+        tid &= 0x3F;
+    } else {
+        tid = (tid+1)&0x3F;
+    }
+    return (tid | 0x80);
 }
 
 
@@ -450,11 +456,6 @@ static void _vendor_model_confirm_tg(struct bt_mesh_model *model,
                                   struct net_buf_simple *buf)
 {
     u8_t tid = 0x0;
-
-    if(buf->len != 1) {
-        BT_ERR("invalid buf len(%d)", buf->len);
-        return;
-    }
 
     tid = net_buf_simple_pull_u8(buf);
     _vendor_model_msg_check_tid(&g_vnd_msg_list, tid);

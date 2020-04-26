@@ -78,6 +78,8 @@ unsigned int get_total_crc_type1_new_fw()
 
 #define OTA_DATA_LEN_1      (16)    
 
+extern unsigned char tlk_irq_disable();
+extern void tlk_irq_resrote(unsigned char r);
 int is_valid_ota_check_type1()
 {	
 	unsigned int crc_org = 0;
@@ -251,7 +253,7 @@ int ali_dfu_image_update(short signature, int offset, int length, int/*void*/ *b
 			if (fw_check_status.checked_len == 0){
 				check_buf[8] = 0x4B;
 			}
-			fw_check_status.checksum += get_blk_crc_tlk_type1(check_buf, check_len, fw_check_status.checked_len);
+			fw_check_status.checksum += get_blk_crc_tlk_type1((unsigned char *)check_buf, check_len, fw_check_status.checked_len);
 			fw_check_status.checked_len += check_len;
 		}
 	}
@@ -280,7 +282,7 @@ bool dfu_check_checksum(short image_id, unsigned short *crc16_output)
 		*crc16_output = fw_check_status.crc16;
 	}
 	unsigned int fw_crc;
-	flash_read_page(ota_program_offset + fw_size - 4, 4, &fw_crc);
+	flash_read_page(ota_program_offset + fw_size - 4, 4, (unsigned char *)&fw_crc);
 	if (fw_crc != fw_check_status.checksum){
 		return false;
 	}

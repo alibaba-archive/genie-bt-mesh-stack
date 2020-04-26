@@ -1781,7 +1781,7 @@ void ultra_prov_recv_random(uint8_t *buf)
         if (ret != TC_CRYPTO_SUCCESS) {
             BT_ERR("sha256 final fail\n");
         } else {
-            BT_DBG("devKey: %s", bt_hex(p_ultra_prov_devkey, 16));
+            BT_INFO("dk %s", bt_hex(p_ultra_prov_devkey, 16));
         }
 
         //calc dev cfm
@@ -1826,6 +1826,7 @@ void ultra_prov_recv_prov_data(uint8_t *buf)
                net_idx, iv_index, addr);
 
         genie_event(GENIE_EVT_SDK_MESH_PROV_DATA, &addr);
+        BT_INFO("nk %s", bt_hex(buf+1, 16));
         bt_mesh_provision(buf+1, net_idx, flags, iv_index, 0, addr, p_ultra_prov_devkey);
         k_free(p_ultra_prov_devkey);
         p_ultra_prov_devkey = NULL;

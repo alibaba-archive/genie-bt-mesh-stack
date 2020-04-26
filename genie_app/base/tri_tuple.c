@@ -101,7 +101,7 @@ uint8_t *genie_tri_tuple_get_uuid(void)
 #ifdef GENIE_ULTRA_PROV
     g_uuid[14] |= UNPROV_ADV_FEATURE_ULTRA_PROV;
 #endif
-    BT_DBG("uuid: %s", bt_hex(g_uuid, 16));
+    BT_INFO("uuid: %s", bt_hex(g_uuid, 16));
 
     return g_uuid;
 }
@@ -257,9 +257,14 @@ void genie_ais_reset(void)
     memset(g_ble_key, 0, 32);
 }
 
-void genie_ais_adv_init(uint8_t ad_structure[14])
+void genie_ais_adv_init(uint8_t ad_structure[14], uint8_t is_silent)
 {
     ad_structure[3] |= 0x08; //FMSK auth enable
+    if(is_silent) {
+        ad_structure[3] |= 0x20;
+    } else {
+        ad_structure[3] &= ~0x20;
+    }
 
     memcpy(ad_structure+4, &g_pid, 4);
     memcpy(ad_structure+8, g_mac, 6);

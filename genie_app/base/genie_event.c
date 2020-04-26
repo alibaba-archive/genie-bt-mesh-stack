@@ -132,17 +132,23 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
     uint16_t addr;
     uint32_t seq;
 
+#ifdef CONFIG_GENIE_OTA
     ais_check_ota_change();
+#endif
 
     print_sw_info();
 
     if(genie_flash_read_addr(&addr) == GENIE_FLASH_SUCCESS && genie_flash_read_seq(&seq) == GENIE_FLASH_SUCCESS){
-        BT_DBG("addr(0x%04x) seq(%d)", addr, seq);
+        BT_INFO("addr(0x%04x) seq(%d)", addr, seq);
         if(genie_flash_read_para(&bt_mesh) == GENIE_FLASH_SUCCESS){
+            BT_INFO("nk %s", bt_hex(bt_mesh.sub[0].keys[0].net, 16));
+            BT_INFO("ak %s", bt_hex(bt_mesh.app_keys[0].keys[0].val, 16));
             bt_mesh_setup(seq, addr);
             genie_sub_list_init();
             genie_mesh_setup();
+#ifdef CONFIG_GENIE_OTA
             ais_service_register();
+#endif
             printk(F_GREEN ">>>proved<<<\n" F_END);
 
             {
@@ -171,7 +177,9 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
             printk(F_RED ">>>unprovisioned<<<\n" F_END);
             g_prov_enable = 1;
             bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
+#ifdef CONFIG_GENIE_OTA
             ais_service_register();
+#endif
         }
         return GENIE_EVT_SDK_MESH_PBADV_START;
     }
@@ -190,7 +198,7 @@ static E_GENIE_EVENT _genie_event_handle_pbadv_start(void)
 static E_GENIE_EVENT _genie_event_handle_pbadv_timeout(void)
 {
     genie_pbadv_timer_stop();
-    bt_mesh_prov_disable(BT_MESH_PROV_GATT);
+    bt_mesh_prov_disable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
     return GENIE_EVT_SDK_MESH_SILENT_START;
 }
 

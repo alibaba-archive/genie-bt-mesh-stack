@@ -1,6 +1,6 @@
-//
-// Created by sanyi on 2019/12/25.
-//
+/*
+ * Copyright (C) 2018-2020 Alibaba Group Holding Limited
+ */
 
 #include <stdint.h>
 #include "vendor_timers.h"
@@ -838,8 +838,8 @@ int vendor_timer_init(vendor_timer_event_func_t cb)
         }
     }
 
-    //sync timing
-    g_vendor_timer.cb(VT_TIMING_SYNC, 0, NULL);
+    //sync timing, not sync when power on
+    //g_vendor_timer.cb(VT_TIMING_SYNC, 0, NULL);
 
     VT_DEBUG("vendor_timer_init\n");
 

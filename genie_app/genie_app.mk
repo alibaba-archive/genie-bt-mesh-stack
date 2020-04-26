@@ -29,6 +29,7 @@ $(NAME)_SOURCES  += genie_app.c \
 					bluetooth/mesh/genie_mesh_flash.c
 
 ifeq ($(MESH_MODEL_VENDOR_TIMER),1)
+GLOBAL_DEFINES += MESH_MODEL_VENDOR_TIMER=1
 $(NAME)_SOURCES += base/vendor_timers.c
 endif
 GLOBAL_DEFINES += CONFIG_BT_MESH
@@ -40,8 +41,6 @@ GLOBAL_DEFINES += CONFIG_GENIE_RESET_BY_REPEAT
 
 
 ####### ota config #######
-GENIE_OTA = 1
-
 ifeq ($(GENIE_OTA),1)
 
 GLOBAL_DEFINES += CONFIG_GENIE_OTA

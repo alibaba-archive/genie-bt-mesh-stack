@@ -78,7 +78,8 @@ int sim_putchar(int c)
 }
 
 #else
-//#include "hal/soc/uart.h"
+extern int hal_uart_send(void *uart, const void *data,
+                      unsigned int size, unsigned int timeout);
 int sim_putchar(int c)
 {
 	return (int)hal_uart_send(NULL,&c,1,10*1000);

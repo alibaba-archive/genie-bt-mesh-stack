@@ -1857,7 +1857,7 @@ static void hci_cmd_complete(struct net_buf *buf)
 {
     struct bt_hci_evt_cmd_complete *evt    = (void *)buf->data;
     u16_t                           opcode = sys_le16_to_cpu(evt->opcode);
-    u8_t                            status, ncmd = evt->ncmd;
+    u8_t                            status;//, ncmd = evt->ncmd;
 
     BT_DBG("opcode 0x%04x", opcode);
 

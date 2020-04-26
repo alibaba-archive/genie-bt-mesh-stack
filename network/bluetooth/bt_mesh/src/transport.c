@@ -52,7 +52,7 @@
 #define SEG_RETRANSMIT_TIMEOUT      K_MSEC(400)
 
 /* Number of retransmit attempts (after the initial transmit) per segment */
-#define SEG_RETRANSMIT_ATTEMPTS     1
+#define SEG_RETRANSMIT_ATTEMPTS     0
 
 /* How long to wait for available buffers before giving up */
 #define BUF_TIMEOUT                 K_NO_WAIT

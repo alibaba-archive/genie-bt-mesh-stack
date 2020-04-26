@@ -6,12 +6,14 @@ board/*
 !board/tc825x
 !board/ch6121evb
 !board/tg7100b
+!board/bk3435devkit
 platform/mcu/*
 !platform/mcu/include
 !platform/mcu/nrf52xxx
 !platform/mcu/tc32_825x
 !platform/mcu/ch6121
 !platform/mcu/tg7100b
+!platform/mcu/bk3435
 platform/arch/*
 !platform/arch/arm
 !platform/arch/tc32

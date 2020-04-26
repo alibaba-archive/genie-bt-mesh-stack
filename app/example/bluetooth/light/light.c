@@ -513,6 +513,8 @@ static void _led_set(uint8_t elem_index, uint8_t on)
 static uint8_t lsd_led_update_last(uint8_t on, uint16_t actual, uint16_t temperature)
 {
     uint8_t err = 1;
+
+#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     pwm_config_t pwm_cfg_c;
     pwm_config_t pwm_cfg_w;
     uint16_t temperature_table = 0;
@@ -555,7 +557,6 @@ static uint8_t lsd_led_update_last(uint8_t on, uint16_t actual, uint16_t tempera
         pwm_cfg_w.duty_cycle = 0;
     }
 
-#if defined(BOARD_TC825X) || defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
     err = hal_pwm_para_chg(&light_led_c,pwm_cfg_c);
     err += hal_pwm_para_chg(&light_led_w,pwm_cfg_w);
 #endif

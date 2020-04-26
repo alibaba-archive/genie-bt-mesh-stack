@@ -977,10 +977,26 @@ static const struct bt_mesh_data prov_ad[] = {
     BT_MESH_DATA(BT_MESH_DATA_SVC_DATA16, prov_svc_data, sizeof(prov_svc_data)),
 };
 
+#ifdef CONFIG_GENIE_OTA
+static u8_t g_ais_adv_data[14] = {
+    0xa8, 0x01, //taobao
+    0x85,       //vid & sub
+    0x15,       //FMSK
+    0x15, 0x11, 0x22, 0x33,             //PID
+    0xAA, 0xBB, 0xCC, 0x11, 0x22, 0x33  //MAC
+};
+
+struct bt_mesh_data prov_sd[] = {
+    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+    BT_DATA_BYTES(BT_DATA_UUID16_SOME, 0xB3, 0xFE),
+    BT_DATA(BT_DATA_MANUFACTURER_DATA, g_ais_adv_data, 14),
+};
+#else
 static const struct bt_mesh_data prov_sd[] = {
     BT_MESH_DATA(BT_MESH_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME,
     (sizeof(CONFIG_BT_DEVICE_NAME) - 1)),
 };
+#endif
 #endif /* PB_GATT */
 
 #if defined(CONFIG_BT_MESH_GATT_PROXY)
@@ -1048,8 +1064,14 @@ static int node_id_adv(struct bt_mesh_subnet *sub)
         }
     }
 #else
+#ifdef CONFIG_GENIE_OTA
+    genie_ais_adv_init(g_ais_adv_data, 1);
+    err = bt_mesh_adv_start(&fast_adv_param, node_id_ad,
+                             ARRAY_SIZE(node_id_ad), prov_sd, ARRAY_SIZE(prov_sd));
+#else
     err = bt_mesh_adv_start(&fast_adv_param, node_id_ad,
                              ARRAY_SIZE(node_id_ad), NULL, 0);
+#endif
 #endif
     if (err) {
         BT_WARN("Failed to advertise using Node ID (err %d)", err);
@@ -1090,8 +1112,14 @@ static int net_id_adv(struct bt_mesh_subnet *sub)
             }
         }
 #else
-    err = bt_mesh_adv_start(&slow_adv_param, net_id_ad,
+#ifdef CONFIG_GENIE_OTA
+    genie_ais_adv_init(g_ais_adv_data, 1);
+    err = bt_mesh_adv_start(&fast_adv_param, net_id_ad,
+                             ARRAY_SIZE(net_id_ad), prov_sd, ARRAY_SIZE(prov_sd));
+#else
+    err = bt_mesh_adv_start(&fast_adv_param, net_id_ad,
                              ARRAY_SIZE(net_id_ad), NULL, 0);
+#endif
 #endif
     if (err) {
         BT_WARN("Failed to advertise using Network ID (err %d)", err);
@@ -1226,6 +1254,9 @@ s32_t bt_mesh_proxy_adv_start(void)
             param = &slow_adv_param;
         }
 
+#ifdef CONFIG_GENIE_OTA
+        genie_ais_adv_init(g_ais_adv_data, 0);
+#endif
         if (bt_mesh_adv_start(param, prov_ad, ARRAY_SIZE(prov_ad),
                                prov_sd, ARRAY_SIZE(prov_sd)) == 0) {
             proxy_adv_enabled = true;

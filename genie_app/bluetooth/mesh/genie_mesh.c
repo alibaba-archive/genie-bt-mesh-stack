@@ -634,13 +634,13 @@ u16_t genie_indicate_hw_reset_event (void)
 
 u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
     uint8_t *p_data = NULL;
-    BT_DBG("vendor model message received\n");
+    BT_DBG("vendor model message received");
     if (!p_msg || !p_msg->data)
         return -1;
     p_data = p_msg->data;
-    BT_DBG("opcode:0x%x, tid:%d, len:%d\n", p_msg->opid, p_msg->tid, p_msg->len);
+    BT_DBG("opcode:0x%x, tid:%d, len:%d", p_msg->opid, p_msg->tid, p_msg->len);
     if (p_data && p_msg->len)
-        BT_DBG("payload: %s\n", bt_hex(p_data, p_msg->len));
+        BT_DBG("payload: %s", bt_hex(p_data, p_msg->len));
 
     switch (p_msg->opid) {
         case VENDOR_OP_ATTR_INDICATE:
@@ -662,8 +662,8 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
             break;
         }
         case VENDOR_OP_ATTR_GET_STATUS: {
-            u16_t attr_type = *p_data++ + (*p_data++ << 8);
 #ifdef MESH_MODEL_VENDOR_TIMER
+            u16_t attr_type = *p_data++ + (*p_data++ << 8);
             if (attr_type == UNIX_TIME_T ||
                 attr_type == TIMEZONE_SETTING_T ||
                 attr_type == TIMING_SYNC_T) {
@@ -678,8 +678,8 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
         }
 
         case VENDOR_OP_ATTR_SET_ACK: {
-            u16_t attr_type = *p_data++ + (*p_data++ << 8);
 #ifdef MESH_MODEL_VENDOR_TIMER
+            u16_t attr_type = *p_data++ + (*p_data++ << 8);
             if (attr_type == UNIX_TIME_T) {
                 uint32_t unix_time = (p_data[0]) | (p_data[1] << 8) | (p_data[2] << 16) | (p_data[3] << 24);
                 p_data += 4;
@@ -708,8 +708,8 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
         }
 
         case VENDOR_OP_ATTR_CONFIME_TG: {
-            u16_t attr_type = *p_data++ + (*p_data++ << 8);
 #ifdef MESH_MODEL_VENDOR_TIMER
+            u16_t attr_type = *p_data++ + (*p_data++ << 8);
             if (attr_type == UNIX_TIME_T) {
                 uint32_t unix_time = (p_data[0]) | (p_data[1] << 8) | (p_data[2] << 16) | (p_data[3] << 24);
                 p_data += 4;
@@ -888,14 +888,14 @@ s16_t genie_vendor_model_msg_send(vnd_model_msg *p_vendor_msg) {
         return r;
 
     opid = p_vendor_msg->opid;
-    BT_DBG("VND msg send: opcode:0x%x, tid:%d, len:%d\n", opid, p_vendor_msg->tid, p_vendor_msg->len);
+    BT_DBG("VND msg send: opcode:0x%x, tid:%d, len:%d", opid, p_vendor_msg->tid, p_vendor_msg->len);
 
 #if 0
     // vnedor confirm message contains 0 extra data except opid
     if (!p_vendor_msg->data && !p_vendor_msg->len)
         return r;
 #endif
-    BT_DBG("payload: %s\n", p_vendor_msg->len ? bt_hex(p_vendor_msg->data, p_vendor_msg->len) : "empty");
+    BT_DBG("payload: %s", p_vendor_msg->len ? bt_hex(p_vendor_msg->data, p_vendor_msg->len) : "empty");
 
     switch (opid) {
         case VENDOR_OP_ATTR_STATUS:
@@ -1087,16 +1087,17 @@ E_MESH_ERROR_TYPE mesh_check_tid(u16_t src_addr, uint8_t tid)
 #if 1   //init
 static void _prov_complete(u16_t net_idx, u16_t addr)
 {
-    printk("Provisioning completed!\n");
-    printk("Net ID: %u\n", net_idx);
-    printk("Unicast addr: 0x%04x\n", addr);
+    BT_DBG("Provisioning completed");
+    BT_DBG("Net ID: %u", net_idx);
+    BT_INFO("ua %04x", addr);
 
     user_prov_complete(net_idx, addr);
 }
 
+
 static void _prov_reset(void)
 {
-    printk("reset provisioning\n");
+    BT_INFO("reset prov");
     user_prov_reset();
 }
 

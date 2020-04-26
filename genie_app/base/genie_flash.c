@@ -374,6 +374,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_copy(genie_flash_cell_t *p_src, genie_
         p_dst->offset = 4;
     } else {
         hal_flash_erase(p_dst->pno, 0, size);
+        p_dst->offset = 0;
     }
 
 
@@ -427,9 +428,6 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_copy(genie_flash_cell_t *p_src, genie_
         } else {
             p_src->offset += sizeof(flash_header_t) + p_src->header.length + p_src->header.align;
         }
-
-        /* read new data */
-        ret = _genie_flash_get_header(p_src);
     } while(ret == GENIE_FLASH_SUCCESS);
     return GENIE_FLASH_SUCCESS;
 }

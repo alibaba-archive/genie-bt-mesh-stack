@@ -67,6 +67,9 @@ void k_queue_prepend(struct k_queue *queue, void *data)
 void k_queue_append_list(struct k_queue *queue, void *head, void *tail)
 {
     sys_slist_append_list(&queue->data_q, head, tail);
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
+    krhino_sem_give(&queue->sem);
+#endif
     handle_poll_events(queue, K_POLL_STATE_DATA_AVAILABLE);
 }
 
@@ -87,11 +90,7 @@ void *k_queue_get(struct k_queue *queue, s32_t timeout)
         ticks = krhino_ms_to_ticks(timeout);
         break;
     }
-    if (timeout == K_FOREVER) {
-        ticks = RHINO_WAIT_FOREVER;
-    } else {
-        ticks = krhino_ms_to_ticks(timeout);
-    }
+
     if (ticks != 0) {
         ret = krhino_sem_take(&queue->sem, ticks);
         if (ret != RHINO_SUCCESS)
