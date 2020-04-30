@@ -16,9 +16,9 @@ ifeq ($(CHECK_FILE), $(wildcard $(CHECK_FILE)))
 # existed.
 else
 $(warning Download tc32 compilation toolchain from the web)
-DOWNLOAD_TOOLCHAIN_URL      ="http://wiki.telink-semi.cn/telink_shenzhen/gcc_for_ali_mesh/gcc-tc32-elf-win.zip"
+DOWNLOAD_TOOLCHAIN_URL      ="http://wiki.telink-semi.cn/NDA/gcc_for_ali_mesh/gcc-tc32-elf-win.zip"
 DOWNLOAD_TOOLCHAIN_FILENAME =gcc-tc32-elf-win.zip
-DOWNLOAD_UNZIP_URL         ="http://wiki.telink-semi.cn/telink_shenzhen/gcc_for_ali_mesh/unzip.exe"
+DOWNLOAD_UNZIP_URL          ="http://wiki.telink-semi.cn/NDA/gcc_for_ali_mesh/unzip.exe"
 DOWNLOAD_UNZIP_FILENAME     =unzip.exe
 TEMP_FOLDER := $(SOURCE_ROOT)tmp
 TEMP_INFO:=$(shell "$(COMMON_TOOLS_PATH)rm$(EXECUTABLE_SUFFIX)" -rf "$(TEMP_FOLDER)")
