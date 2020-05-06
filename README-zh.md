@@ -4,8 +4,8 @@ Genie BT mesh Stack是一套适用于天猫精灵生态的蓝牙meshSDK.
 
 # 社区
 
-*[天猫精灵AIoT开发者社区](https://developer.aliyun.com/group/genieaiot)
-*[天猫精灵开发者平台](https://www.aligenie.com/)
+* [天猫精灵AIoT开发者社区](https://developer.aliyun.com/group/genieaiot)
+* [天猫精灵开发者平台](https://www.aligenie.com/)
 
 # License
 
