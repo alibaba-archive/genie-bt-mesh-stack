@@ -413,8 +413,8 @@ static void _ais_ota_timer_cb(void *p_timer, void *args)
             }
             break;
         case AIS_STATE_REBOOT:
+            bt_conn_disconnect(g_ais_srv_ctx.p_conn, BT_HCI_ERR_SUCCESS);
             if(g_ais_srv_ctx.ota_info.ota_flag != OTA_FLAG_SILENT || ota_check_reboot()) {
-                bt_conn_disconnect(g_ais_srv_ctx.p_conn, BT_HCI_ERR_SUCCESS);
                 //clear image change
                 genie_flash_delete_reliable(GFI_OTA_IMAGE_CHANGE);
                 dfu_reboot();

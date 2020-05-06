@@ -25,4 +25,6 @@ typedef struct _vnd_model_msg_n {
     vnd_model_msg msg;
 } vnd_model_msg_n;
 
+u8_t vendor_model_msg_gen_tid(void);
+
 #endif //_VENDOR_MODEL_SRV_H

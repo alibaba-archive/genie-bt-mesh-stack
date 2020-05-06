@@ -27,6 +27,17 @@ void ais_connect(struct bt_conn *p_conn);
 int ais_service_register(void);
 
 /**
+ * @brief get the ota indication flag from flash.
+ * @return the ota indication flag.
+ */
+bool ais_get_ota_indicat(void);
+
+/**
+ * @brief clear ota indication flag in flash.
+ */
+void ais_clear_ota_indicat(void);
+
+/**
  * @brief check the ota status, the device will finish ota and reboot.
  */
 void ais_check_ota_change(void);

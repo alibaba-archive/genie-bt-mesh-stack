@@ -31,7 +31,7 @@ struct bt_mesh_model_pub g_vendor_model_alibaba_pub = {
     .msg = NET_BUF_SIMPLE(3 + 17 + 4), // allocate maximum payload size
 };
 
-/** @def _vendor_model_msg_gen_tid
+/** @def vendor_model_msg_gen_tid
  *
  *  @brief generate tid used in vendor model message
  *
@@ -39,7 +39,7 @@ struct bt_mesh_model_pub g_vendor_model_alibaba_pub = {
  *
  *  @return tid with range of [0x80, 0xff]
  */
-u8_t _vendor_model_msg_gen_tid(void) {
+u8_t vendor_model_msg_gen_tid(void) {
     static u8_t tid = 0xFF;
 
     if(tid == 0xFF) {
@@ -224,6 +224,13 @@ static s16_t _vendor_model_msg_check_tid(sys_dlist_t *p_head, u8_t tid) {
     if (sys_dlist_is_empty(p_head))
         return 0;
 
+#ifdef CONFIG_GENIE_OTA
+    extern uint8_t g_version_tid;
+    if(g_version_tid != 0xFF && g_version_tid == tid) {
+        ais_clear_ota_indicat();
+    }
+#endif
+
     /**
      * go through message list and dequeue the vendor model's message and free it if received message
      * s tid equals this message's tid
@@ -297,7 +304,7 @@ s16_t vendor_model_msg_send(vnd_model_msg *p_model_msg)
         (p_model_msg->opid != VENDOR_OP_ATTR_CONFIME_TG) &&
         (p_model_msg->opid != VENDOR_OP_ATTR_TRANS_MSG) &&
         (p_model_msg->opid != VENDOR_OP_ATTR_TRANS_ACK)) {
-        p_model_msg->tid = _vendor_model_msg_gen_tid();
+        p_model_msg->tid = vendor_model_msg_gen_tid();
     }
 
     //prepare buffer

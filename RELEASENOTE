@@ -1,0 +1,29 @@
+v1.0.0
+The first Version.
+
+v1.0.1
+Support tc825x.
+Support pca10040.
+
+v1.0.2
+Modify OTA module.
+Support bk3435.
+
+v1.0.3
+Add Heartbeat.
+
+v1.0.4
+Support phy6212.
+Support tg7100b.
+Add ultra prov.
+
+v1.1.0
+Modify reset count from 5 to 4.
+Modify mesh para.
+Remove PROJECT light.
+Add PROJECT light_ctl.
+Always disconnet gatt when OTA finished.
+Use random tid when device power on.
+Add led flash(x3) when prov success via PB_GATT.
+Modify indication event API.
+Report version when OTA successed.

@@ -12,7 +12,6 @@
 #include <bluetooth.h>
 #include <api/mesh.h>
 
-//#include "genie_app.h"
 #include "net.h"
 #include "transport.h"
 #include "genie_app.h"
@@ -23,12 +22,13 @@
 extern u32_t get_mesh_pbadv_time(void);
 extern void mesh_sub_init(u16_t *p_sub);
 extern uint8_t get_vendor_element_num(void);
-extern void user_prov_complete(u16_t net_idx, u16_t addr);
-extern void user_prov_reset(void);
+//extern void user_prov_complete(u16_t net_idx, u16_t addr);
+//extern void user_prov_reset(void);
 
 //implemented at ./network/bluetooth/bt_mesh/src/beacon.c:51
 extern void unprov_beacon_interval_set(uint32_t delay);
 extern int hci_driver_init(void);
+extern elem_state_t g_elem_state[];
 
 #define MESH_PROVISIONING_TIMEOUT 60*1000
 
@@ -193,7 +193,7 @@ void genie_pbadv_timer_stop(void)
 void genie_pbadv_start_silent_adv(void)
 {
     genie_tri_tuple_set_silent_adv();
-    bt_mesh_prov_disable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
+    //bt_mesh_prov_disable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
     unprov_beacon_interval_set(K_SECONDS(60));
     bt_mesh_prov_enable(BT_MESH_PROV_ADV);
 }
@@ -221,28 +221,40 @@ void genie_prov_timer_stop(void)
 
 
 #ifdef CONFIG_MESH_MODEL_VENDOR_SRV
-static void _poweron_indicate_cb(void *p_timer, void *args)
+static void _genie_indicate_cb(void *p_timer, void *args)
 {
-    genie_prov_timer_stop();
-    genie_event(GENIE_EVT_SDK_MESH_PWRON_INDC, NULL);
+    struct k_timer *p_cb_timer = p_timer;
+    elem_state_t *p_elem = p_cb_timer->args;
+    BT_DBG("p_cb_timer %p", p_cb_timer);
+    //genie_prov_timer_stop();
+    if(g_indication_flag & INDICATION_FLAG_POWERON) {
+        genie_event(GENIE_EVT_SDK_MESH_PWRON_INDC, p_elem);
+    } else {
+        genie_event(GENIE_EVT_SDK_INDICATE, p_elem);
+    }
 }
 
-void poweron_indicate_start(void)
+void genie_indicate_start(uint16_t delay_ms, elem_state_t *p_elem)
 {
     static uint8_t inited = 0;
     uint16_t random_time;
 
     if(!inited) {
-        k_timer_init(&g_indc_timer, _poweron_indicate_cb, NULL);
+        k_timer_init(&g_indc_timer, _genie_indicate_cb, NULL);
         inited = 1;
     }
     bt_rand(&random_time, 1);
+    if(delay_ms == 0) {
 #ifdef CONFIG_MESH_MODEL_TRANS
     random_time = 2000 + 8000*random_time/255;
 #else
     random_time = 500 + 9500*random_time/255;
 #endif
-    BT_DBG("indicate random(%d)ms", random_time);
+    } else {
+        random_time = delay_ms;
+    }
+    BT_DBG("indicate delay(%d)ms", random_time);
+    g_indc_timer.args = p_elem;
     k_timer_start(&g_indc_timer, random_time);
 }
 
@@ -358,7 +370,8 @@ static void _vendor_timer_timing_settting_event(u8_t op, u8_t *msg, u16_t msg_le
     u8_t *pmsg = msg;
     uint16_t msg_len = msg_length;
 
-    u16_t attr_type = *pmsg++ + (*pmsg++ << 8);
+    u16_t attr_type = *pmsg++;
+    attr_type += (*pmsg++ << 8);
     msg_len -= 2;
 
     if (attr_type != TIMING_SETTING_T) {
@@ -454,7 +467,8 @@ static void _vendor_timer_priordic_timing_settting_event(u8_t op, u8_t *msg, u16
     u8_t *pmsg = msg;
     uint16_t msg_len = msg_length;
 
-    u16_t attr_type = *pmsg++ + (*pmsg++ << 8);
+    u16_t attr_type = *pmsg++;
+    attr_type += (*pmsg++ << 8);
     msg_len -= 2;
 
     if (attr_type != TIMING_PERIODIC_SETTING_T) {
@@ -551,7 +565,8 @@ static void _vendor_timer_timing_remove_event(u8_t op, u8_t *msg, u16_t msg_leng
     u8_t *pmsg = msg;
     uint16_t msg_len = msg_length;
 
-    u16_t attr_type = *pmsg++ + (*pmsg++ << 8);
+    u16_t attr_type = *pmsg++;
+    attr_type += (*pmsg++ << 8);
     msg_len -= 2;
 
     if (attr_type != TIMING_DELETE_T) {
@@ -645,14 +660,13 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
     switch (p_msg->opid) {
         case VENDOR_OP_ATTR_INDICATE:
         {
-            //u16_t attr_type = *p_data++ + (*p_data++ << 8);
             u16_t attr_type = *p_data++;
             attr_type += (*p_data++ << 8);
             if (attr_type == DEVICE_EVENT_T) {
                 uint8_t event_id = *p_data;
                 switch (event_id) {
                     case EL_DEV_UP_T:
-                        poweron_indicate_start(); // When receiving genie's device up status, indication device's state and device up event in sequence
+                        genie_indicate_start(0, &g_elem_state[0]); // When receiving genie's device up status, indication device's state and device up event in sequence
                         break;
                     default:
                         break;
@@ -663,7 +677,8 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
         }
         case VENDOR_OP_ATTR_GET_STATUS: {
 #ifdef MESH_MODEL_VENDOR_TIMER
-            u16_t attr_type = *p_data++ + (*p_data++ << 8);
+            u16_t attr_type = *p_data++;
+            attr_type += (*p_data++ << 8);
             if (attr_type == UNIX_TIME_T ||
                 attr_type == TIMEZONE_SETTING_T ||
                 attr_type == TIMING_SYNC_T) {
@@ -679,7 +694,8 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
 
         case VENDOR_OP_ATTR_SET_ACK: {
 #ifdef MESH_MODEL_VENDOR_TIMER
-            u16_t attr_type = *p_data++ + (*p_data++ << 8);
+            u16_t attr_type = *p_data++;
+            attr_type += (*p_data++ << 8);
             if (attr_type == UNIX_TIME_T) {
                 uint32_t unix_time = (p_data[0]) | (p_data[1] << 8) | (p_data[2] << 16) | (p_data[3] << 24);
                 p_data += 4;
@@ -709,7 +725,8 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg){
 
         case VENDOR_OP_ATTR_CONFIME_TG: {
 #ifdef MESH_MODEL_VENDOR_TIMER
-            u16_t attr_type = *p_data++ + (*p_data++ << 8);
+            u16_t attr_type = *p_data++;
+            attr_type += (*p_data++ << 8);
             if (attr_type == UNIX_TIME_T) {
                 uint32_t unix_time = (p_data[0]) | (p_data[1] << 8) | (p_data[2] << 16) | (p_data[3] << 24);
                 p_data += 4;
@@ -776,12 +793,15 @@ uint8_t get_seg_count(uint16_t msg_len)
 }
 
 #ifdef CONFIG_MESH_MODEL_VENDOR_SRV
+#ifdef CONFIG_GENIE_OTA
+uint8_t g_version_tid = 0xFF;
+#endif
 /*
 indication onoff/lightness/temperature/power on
 */
 void standart_indication(elem_state_t *p_elem)
 {
-    uint8_t buff[14];
+    uint8_t buff[20];
     uint16_t i = 0;
     uint8_t cur_indication_flag = g_indication_flag;
     uint8_t seg_count = 0;
@@ -817,6 +837,11 @@ void standart_indication(elem_state_t *p_elem)
         }
 #endif
     }
+#ifdef CONFIG_GENIE_OTA
+    if(g_indication_flag & INDICATION_FLAG_VERSION) {
+        g_indication_flag &= ~INDICATION_FLAG_VERSION;
+    }
+#endif
     BT_DBG("real flag %02x", cur_indication_flag);
 
 #ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
@@ -842,11 +867,21 @@ void standart_indication(elem_state_t *p_elem)
         buff[i++] = (p_elem->state.temp[T_CUR] >> 8) & 0xff;
     }
 #endif
+#ifdef CONFIG_GENIE_OTA
+    if(cur_indication_flag & INDICATION_FLAG_VERSION) {
+        uint32_t version = PROJECT_SW_VERSION;
+        buff[i++] = VERSION_REPORT_T & 0xff;
+        buff[i++] = (VERSION_REPORT_T >> 8) & 0xff;
+        memcpy(&buff[i], &version, 4);
+        i += 4;
+        cur_indication_flag &= ~INDICATION_FLAG_POWERON;
+        g_version_tid = vendor_model_msg_gen_tid();
+    }
+#endif
     if(cur_indication_flag & INDICATION_FLAG_POWERON) {
         buff[i++] = DEVICE_EVENT_T & 0xff;
         buff[i++] = (DEVICE_EVENT_T >> 8) & 0xff;
         buff[i++] = EL_DEV_UP_T;
-        cur_indication_flag &= ~INDICATION_FLAG_POWERON;
     }
     BT_DBG("end flag %02x", g_indication_flag);
 
@@ -855,7 +890,9 @@ void standart_indication(elem_state_t *p_elem)
         seg_count = get_seg_count(i + 4);
 
         reply_msg.opid = VENDOR_OP_ATTR_INDICATE;
-        reply_msg.tid = 0;
+        if(g_version_tid == 0xFF) {
+            reply_msg.tid = 0;
+        }
         reply_msg.data = buff;
         reply_msg.len = i;
         reply_msg.p_elem = &elements[p_elem->elem_index];
@@ -877,7 +914,7 @@ void genie_sub_list_init(void)
         mesh_sub_init(g_sub_list);
         genie_flash_write_sub(g_sub_list);
     }
-    BT_DBG("sub: %s", bt_hex(g_sub_list, sizeof(g_sub_list)));
+    BT_INFO("sb %s", bt_hex(g_sub_list, sizeof(g_sub_list)));
 }
 
 s16_t genie_vendor_model_msg_send(vnd_model_msg *p_vendor_msg) {
@@ -956,6 +993,7 @@ uint8_t elem_state_init(uint8_t state_count, elem_state_t *p_elem)
         p_elem[i].state.actual[T_TAR] = LIGHTNESS_DEFAULT;
 #endif
 #ifdef MESH_MODEL_CTL_SRV
+        p_elem[i].state.temp[T_CUR] = CTL_TEMP_DEFAULT;
         p_elem[i].state.temp[T_TAR] = CTL_TEMP_DEFAULT;
 #endif
 #ifdef CONFIG_MESH_MODEL_TRANS
@@ -1088,17 +1126,15 @@ E_MESH_ERROR_TYPE mesh_check_tid(u16_t src_addr, uint8_t tid)
 static void _prov_complete(u16_t net_idx, u16_t addr)
 {
     BT_DBG("Provisioning completed");
-    BT_DBG("Net ID: %u", net_idx);
-    BT_INFO("ua %04x", addr);
-
-    user_prov_complete(net_idx, addr);
+    //BT_DBG("Net ID: %u", net_idx);
+    //BT_DBG("ua %04x", addr);
 }
 
 
 static void _prov_reset(void)
 {
     BT_INFO("reset prov");
-    user_prov_reset();
+    //user_prov_reset();
 }
 
 #ifdef MESH_MODEL_VENDOR_TIMER

@@ -12,8 +12,13 @@
 #if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
 
 #define SCHD_LOGD(...) //printf
-#define CONN_ADV_DATA_TIEMOUT   (6)
-#define NOCONN_ADV_DATA_TIEMOUT (2)
+/*
+    Genie MESH define the interval should be 20ms each packet.
+    To avoid the accuracy of system timer, we define the timer to 15 ms
+    the real timeout = (ADV_INTERVAL_TIMER - NOCONN_ADV_DATA_TIEMOUT) or
+    (ADV_INTERVAL_TIMER - CONN_ADV_DATA_TIEMOUT)
+*/
+#define ADV_INTERVAL_TIMER      (15) //ms
 
 typedef enum {
     SCHD_IDLE = 0,
@@ -293,7 +298,8 @@ void adv_scan_timer(void *timer, void *arg)
             SCHD_LOGD("adv stop err %d\n", ret);
         }
 
-        next_time = adv_scan_schd.param.adv_param.interval_min * 5 / 8 - adv_time;
+        /* Here, we define the adv window of each package in adv duration (120ms or xmit related time)*/
+        next_time = ADV_INTERVAL_TIMER - adv_time; //adv_scan_schd.param.adv_param.interval_min * 5 / 8 - adv_time;
 
         if (next_time > 1) {
             ret = bt_le_scan_start(&adv_scan_schd.param.scan_param, adv_scan_schd.param.scan_cb);

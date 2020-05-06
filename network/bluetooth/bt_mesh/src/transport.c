@@ -243,7 +243,7 @@ static void seg_tx_send_unacked(struct seg_tx *tx)
 		}
 
 		if (!(BT_MESH_ADV(seg)->seg.attempts--)) {
-			BT_WARN("Send unacked end");
+			BT_DBG("Send unacked end");
 			seg_tx_complete(tx, -ETIMEDOUT);
 			return;
 		}

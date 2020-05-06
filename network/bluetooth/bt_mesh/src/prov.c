@@ -550,6 +550,12 @@ static void prov_invite(const u8_t *data)
     }
 
     link.expect = PROV_START;
+
+#if defined(CONFIG_BT_MESH_PB_GATT)
+    if (link.conn) {
+        genie_event(GENIE_EVT_SDK_MESH_PROV_START, NULL);
+    }
+#endif
 }
 
 static void prov_capabilities(const u8_t *data)
@@ -1083,7 +1089,7 @@ static void prov_data(const u8_t *data)
         return;
     }
 
-    BT_DBG("DevKey: %s", bt_hex(dev_key, 16));
+    BT_INFO("dk %s", bt_hex(dev_key, 16));
 
     net_idx = sys_get_be16(&pdu[16]);
     flags = pdu[18];

@@ -3,7 +3,7 @@ NAME := genie_app
 ble = 1
 
 $(NAME)_MBINS_TYPE := kernel
-$(NAME)_VERSION := 1.0.4
+$(NAME)_VERSION := 1.1.0
 $(NAME)_SUMMARY := Genie mesh application.
 
 GLOBAL_CFLAGS += -DSYSINFO_BUILD_TIME=\"$(CURRENT_TIME)\"
@@ -28,8 +28,8 @@ $(NAME)_SOURCES  += genie_app.c \
 					bluetooth/mesh/genie_mesh.c \
 					bluetooth/mesh/genie_mesh_flash.c
 
-ifeq ($(MESH_MODEL_VENDOR_TIMER),1)
-GLOBAL_DEFINES += MESH_MODEL_VENDOR_TIMER=1
+ifeq ($(genie_vendor_timer),1)
+GLOBAL_DEFINES += MESH_MODEL_VENDOR_TIMER
 $(NAME)_SOURCES += base/vendor_timers.c
 endif
 GLOBAL_DEFINES += CONFIG_BT_MESH
@@ -41,22 +41,13 @@ GLOBAL_DEFINES += CONFIG_GENIE_RESET_BY_REPEAT
 
 
 ####### ota config #######
-ifeq ($(GENIE_OTA),1)
-
+ifeq ($(genie_ota),1)
 GLOBAL_DEFINES += CONFIG_GENIE_OTA
-
 $(NAME)_SOURCES  += bluetooth/host/profile/ais_srv/ais_service.c
-
 ifeq ($(HOST_ARCH), tc32)
 GLOBAL_DEFINES += CONFIG_GENIE_OTA_PINGPONG
 endif
-
 endif
-
-
-####### bt config #######
-GLOBAL_DEFINES += CONFIG_BT_L2CAP_TX_MTU=143
-GLOBAL_DEFINES += CONFIG_BT_RX_BUF_LEN=151
 
 
 ####### model config #######

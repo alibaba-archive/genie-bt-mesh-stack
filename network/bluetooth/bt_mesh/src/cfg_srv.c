@@ -112,6 +112,7 @@ static void hb_send(struct bt_mesh_model *model)
     hb.feat = sys_cpu_to_be16(feat);
 
     BT_DBG("InitTTL %u feat 0x%04x", cfg->hb_pub.ttl, feat);
+    BT_INFO("HB %d", cfg->hb_pub.period);
 
     bt_mesh_ctl_send(&tx, TRANS_CTL_OP_HEARTBEAT, &hb, sizeof(hb),
              NULL, NULL, NULL);
@@ -528,6 +529,7 @@ static void app_key_add(struct bt_mesh_model *model,
 
     bt_mesh_model_msg_init(msg, OP_APP_KEY_STATUS);
 
+    BT_INFO("ak %s", bt_hex(buf->data, 16));
     status = app_key_set(key_net_idx, key_app_idx, buf->data, false);
     BT_DBG("status 0x%02x", status);
 
@@ -542,6 +544,13 @@ static void app_key_add(struct bt_mesh_model *model,
     genie_mesh_setup();
 
     genie_event(GENIE_EVT_SDK_APPKEY_ADD, &status);
+}
+
+void genie_appkey_register(u16_t net_idx, u16_t app_idx, const u8_t val[16], bool update)
+{
+    app_key_set(net_idx, app_idx, val, update);
+    genie_sub_list_init();
+    genie_mesh_setup();
 }
 
 static void app_key_update(struct bt_mesh_model *model,
@@ -2579,6 +2588,9 @@ static void node_reset(struct bt_mesh_model *model,
         BT_ERR("Unable to send Node Reset Status");
     }
 
+    if (genie_reset_get_flag()) {
+        return;
+    }
     bt_mesh_reset();
     genie_event(GENIE_EVT_SW_RESET, NULL);
 }

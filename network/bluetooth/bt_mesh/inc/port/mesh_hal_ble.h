@@ -9,6 +9,11 @@
 #include <net/buf.h>
 #include <mesh_def.h>
 
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
+#define CONN_ADV_DATA_TIEMOUT   (6)
+#define NOCONN_ADV_DATA_TIEMOUT (2)
+#endif
+
 typedef struct {
         uint8_t      type; /* 0 - public addr, other - RFU */
         bt_mesh_addr_t a;

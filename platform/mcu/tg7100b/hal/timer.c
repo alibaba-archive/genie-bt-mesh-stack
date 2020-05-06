@@ -55,6 +55,8 @@ int32_t hal_timer_start(timer_dev_t *tim)
         return -1;
     }
 
+    csi_timer_set_timeout(timer_handlers[tim->port], tim->config.period);
+
     return csi_timer_start(timer_handlers[tim->port]);
 }
 

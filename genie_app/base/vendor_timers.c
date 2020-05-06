@@ -474,7 +474,7 @@ static void vendor_timer_check()
         }
 
         g_vendor_timer.unix_time_sync_retry_times = g_timing_data.timing_sync_config.retry_times;
-        g_vendor_timer.unix_time_sync_match == g_vendor_timer.unix_time + g_timing_data.timing_sync_config.period_time *MINU;
+        g_vendor_timer.unix_time_sync_match = g_vendor_timer.unix_time + g_timing_data.timing_sync_config.period_time *MINU;
     }
 }
 
@@ -525,7 +525,7 @@ static struct vendor_timer_t *vendor_timer_new()
 {
     struct vendor_timer_t *free_timer;
     VT_LOCK;
-    free_timer = sys_slist_get(&g_vendor_timer.timer_list_idle);
+    free_timer = (struct vendor_timer_t *)sys_slist_get(&g_vendor_timer.timer_list_idle);
     VT_UNLOCK;
     VT_DEBUG("timer new %p\n", free_timer);
     return free_timer;

@@ -311,10 +311,19 @@ static void adv_thread(void *p1, void *p2, void *p3)
 #ifdef CONFIG_BT_MESH_MULTIADV
         bt_mesh_multi_adv_thread_run();
 #else
-        uint32_t time_start;
         struct net_buf *buf;
 
         if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
+#if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
+            buf = net_buf_get(&adv_queue, NOCONN_ADV_DATA_TIEMOUT);
+            if (!buf) {
+                s32_t timeout = bt_mesh_proxy_adv_start();
+                BT_DBG("Proxy Advertising up to %d ms", timeout);
+                buf = net_buf_get(&adv_queue, timeout);
+                bt_mesh_proxy_adv_stop();
+            }
+#else
+            uint32_t time_start;
             buf = net_buf_get(&adv_queue, K_NO_WAIT);
             while (!buf) {
                 s32_t timeout;
@@ -333,6 +342,7 @@ static void adv_thread(void *p1, void *p2, void *p3)
                 }
                 bt_mesh_proxy_adv_stop();
             }
+#endif
         } else {
             buf = net_buf_get(&adv_queue, K_FOREVER);
         }

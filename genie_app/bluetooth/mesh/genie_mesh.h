@@ -77,6 +77,9 @@ typedef struct{
 }  model_state_t;
 
 typedef struct{
+#ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
+        u8_t last_onoff;
+#endif
 #ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
     u16_t last_actual;
 #endif
@@ -91,7 +94,6 @@ typedef struct{
 
 #ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
     u8_t default_onoff;
-    u8_t last_onoff;
 #endif
 
 #ifndef CONFIG_ALI_SIMPLE_MODLE
@@ -155,7 +157,9 @@ typedef enum{
 #ifdef CONFIG_MESH_MODEL_CTL_SRV
 #define INDICATION_FLAG_CTL 0x04
 #endif
-//#define INDICATION_FLAG_VENDOR 0x08
+#ifdef CONFIG_GENIE_OTA
+#define INDICATION_FLAG_VERSION 0x08
+#endif
 #endif
 
 extern uint8_t g_indication_flag;
@@ -216,7 +220,7 @@ u16_t genie_vnd_msg_handle(vnd_model_msg *p_msg);
 /**
  * @brief
  */
-void poweron_indicate_start(void);
+void genie_indicate_start(uint16_t delay_ms, elem_state_t *p_elem);
 
 /**
  * @brief

@@ -20,6 +20,7 @@
 #define ONOFF_T           0x0100
 #define LIGHTNESS_T       0x0121
 #define TEMPERATURE_T     0x0122
+#define VERSION_REPORT_T  0xFF01
 #define DEVICE_EVENT_T    0xF009
 
 /* Event List - Refer to Device Event List defined in https://yuque.antfin-inc.com/iotconnect/wwfb/dbyytw#1c38cf1b */

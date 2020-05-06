@@ -10,11 +10,25 @@
 typedef struct{
     uint16_t dst;
     uint8_t count;
-    uint8_t  period;
-    uint8_t  ttl;
+    uint8_t period;
+    uint8_t ttl;
     uint16_t feat;
     uint16_t net_idx;
 } mesh_hb_para_t;
+
+typedef struct{
+    uint16_t net_index;
+    uint8_t flag;
+    uint32_t ivi;
+    uint8_t key[16];
+} mesh_netkey_para_t;
+
+typedef struct{
+    uint16_t net_index;
+    uint16_t key_index;
+    uint8_t flag;
+    uint8_t key[16];
+} mesh_appkey_para_t;
 
 E_GENIE_FLASH_ERRCODE genie_flash_write_trituple(uint32_t *p_pid, uint8_t *p_mac,  uint8_t *p_key);
 E_GENIE_FLASH_ERRCODE genie_flash_read_trituple(uint32_t *p_pid, uint8_t *p_mac,  uint8_t *p_key);
@@ -76,19 +90,60 @@ E_GENIE_FLASH_ERRCODE genie_flash_write_hb(mesh_hb_para_t *p_para);
 E_GENIE_FLASH_ERRCODE genie_flash_read_hb(mesh_hb_para_t *p_para);
 
 /**
- * @brief save the factory status to flash
- * @param[in] status: factory status
+ * @brief save the devices key to flash
+ * @param[in] status: devcie key
  * @return the status of operation, 0 means successed.
  */
-E_GENIE_FLASH_ERRCODE genie_flash_write_factory(uint8_t *status);
+E_GENIE_FLASH_ERRCODE genie_flash_write_devkey(uint8_t *p_devkey);
 
 /**
- * @brief read the factory status from flash
- * @param[out] status: factory status
+ * @brief read the devices key from flash
+ * @param[out] status: devcie key
  * @return the status of operation, 0 means successed.
  */
-E_GENIE_FLASH_ERRCODE genie_flash_read_factory(uint8_t *status);
+E_GENIE_FLASH_ERRCODE genie_flash_read_devkey(uint8_t *p_devkey);
+
+/**
+ * @brief save the net key to flash
+ * @param[in] status: net key
+ * @return the status of operation, 0 means successed.
+ */
+E_GENIE_FLASH_ERRCODE genie_flash_write_netkey(mesh_netkey_para_t *p_netkey);
+
+/**
+ * @brief read the net key from flash
+ * @param[out] status: net key
+ * @return the status of operation, 0 means successed.
+ */
+E_GENIE_FLASH_ERRCODE genie_flash_read_netkey(mesh_netkey_para_t *p_netkey);
+
+/**
+ * @brief save the app key to flash
+ * @param[in] status: app key
+ * @return the status of operation, 0 means successed.
+ */
+E_GENIE_FLASH_ERRCODE genie_flash_write_appkey(mesh_appkey_para_t *p_appkey);
+
+/**
+ * @brief read the app key from flash
+ * @param[out] status: app key
+ * @return the status of operation, 0 means successed.
+ */
+E_GENIE_FLASH_ERRCODE genie_flash_read_appkey(mesh_appkey_para_t *p_appkey);
+
+
+/**
+ * @brief save the seq number to flash
+ * @param[in] status: seq number
+ * @return the status of operation, 0 means successed.
+ */
 E_GENIE_FLASH_ERRCODE genie_flash_write_seq(uint32_t *p_seq);
+
+/**
+ * @brief read the seq number from flash
+ * @param[out] status: seq number
+ * @return the status of operation, 0 means successed.
+ */
 E_GENIE_FLASH_ERRCODE genie_flash_read_seq(uint32_t *p_seq);
 
 /**

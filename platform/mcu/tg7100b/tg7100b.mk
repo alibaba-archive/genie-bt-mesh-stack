@@ -41,6 +41,7 @@ $(NAME)_SOURCES += csi/csi_driver/phyplus/common/adc.c           \
                    csi/csi_driver/phyplus/common/phy_aes.c        \
                    csi/csi_driver/phyplus/common/phy_pmu.c        \
                    csi/csi_driver/phyplus/common/phy_rtc.c        \
+                   csi/csi_driver/phyplus/common/gpio_usart.c     \
                    csi/csi_driver/phyplus/tg7100b/startup.S       \
                    csi/csi_driver/phyplus/tg7100b/lpm_arch_reg_save.S  \
                    csi/csi_driver/phyplus/tg7100b/system.c        \
@@ -128,4 +129,5 @@ GLOBAL_LDFLAGS += -DALI_OPT=1
 endif
 
 GLOBAL_CFLAGS += -D_RTE_ -DARMCM0 -DCFG_CP -DCFG_QFN32 -DCFG_SLEEP_MODE="PWR_MODE_NO_SLEEP" -DDEBUG_INFO="1" -DCONFIG_AOS_KV_MULTIPTN_MODE -DCONFIG_AOS_KV_PTN=6 -DCONFIG_AOS_KV_SECOND_PTN=7 -DCONFIG_AOS_KV_PTN_SIZE=4096 -DCONFIG_AOS_KV_BUFFER_SIZE=8192
+GLOBAL_DEFINES += CONFIG_BT_MESH_ADV_BUF_COUNT=11
 GLOBAL_DEFINES += CONFIG_BT_HARD_ECC

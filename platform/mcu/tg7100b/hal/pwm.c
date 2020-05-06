@@ -85,7 +85,6 @@ int32_t hal_pwm_init(pwm_dev_t *pwm)
             return -1;
         }
     }
-    drv_pinmux_config(pwm->port, func);
     return 0;
 }
 
@@ -157,6 +156,7 @@ int32_t hal_pwm_para_chg(pwm_dev_t *pwm, pwm_config_t para)
     int ret;
     uint8_t func;
     uint8_t pwm_chn;
+    uint32_t period_us;
 
     if (!pwm_handlers) {
         return -1;
@@ -168,24 +168,22 @@ int32_t hal_pwm_para_chg(pwm_dev_t *pwm, pwm_config_t para)
     }
     pwm_chn = func - PWM0;
 
+    period_us = para.freq;
     duty_cycle = para.duty_cycle;
 
     //printf("port %d, chan %d period_us %d, duty %d\n", pwm->port, pwm_chn, para.freq, para.duty_cycle);
 
-    if (para.duty_cycle == 0) {
+    if (duty_cycle == 0) {
         csi_pwm_stop(pwm_handlers, pwm_chn);
-        drv_pinmux_config(pwm->port, PIN_FUNC_GPIO);
-        phy_gpio_pull_set(pwm->port, STRONG_PULL_UP);
-
     } else {
         drv_pinmux_config(pwm->port, func);
-        ret = csi_pwm_config(pwm_handlers, pwm_chn, para.freq, para.duty_cycle);
+        ret = csi_pwm_config(pwm_handlers, pwm_chn, period_us, duty_cycle);
 
         if (ret) {
             return -1;
         }
 
-        csi_pwm_start(pwm_handlers, pwm_chn);
+//        csi_pwm_start(pwm_handlers, pwm_chn);
     }
     return 0;
 }
