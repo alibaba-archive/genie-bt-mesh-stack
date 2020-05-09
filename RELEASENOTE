@@ -1,21 +1,14 @@
-v1.0.0
-The first Version.
-
-v1.0.1
-Support tc825x.
-Support pca10040.
-
-v1.0.2
-Modify OTA module.
-Support bk3435.
-
-v1.0.3
-Add Heartbeat.
-
-v1.0.4
-Support phy6212.
-Support tg7100b.
-Add ultra prov.
+v1.1.1
+1.support i2c in tg7100b
+2.Modify vendor msg resent count max, 10->60.
+3.Modify vendor msg resent process.
+4.Modify lightness table.
+5.Add config for the light of HONGYAN in tc825x.
+6.Add flash earse when ota failed.
+7.Modify debug macro.
+8.Modify light transition.
+9.Add macro to disable all debug traces.
+10.Modify transport paras.
 
 v1.1.0
 Modify reset count from 5 to 4.
@@ -27,3 +20,22 @@ Use random tid when device power on.
 Add led flash(x3) when prov success via PB_GATT.
 Modify indication event API.
 Report version when OTA successed.
+
+v1.0.4
+Support phy6212.
+Support tg7100b.
+Add ultra prov.
+
+v1.0.3
+Add Heartbeat.
+
+v1.0.2
+Modify OTA module.
+Support bk3435.
+
+v1.0.1
+Support tc825x.
+Support pca10040.
+
+v1.0.0
+The first Version.

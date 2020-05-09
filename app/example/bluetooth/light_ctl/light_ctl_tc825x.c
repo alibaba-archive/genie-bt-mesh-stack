@@ -3,10 +3,14 @@
 #include "drivers/8258/gpio_8258.h"
 #include "vendor/common/alios_app_config.h"
 
+#ifdef CONIFG_LIGHT_HONGYAN
+#define WARM_PIN            TC825X_GET_PIN_NUM(GPIO_PB0)
+#define COLD_PIN            TC825X_GET_PIN_NUM(GPIO_PB1)
+#else
 #define WARM_PIN            TC825X_GET_PIN_NUM(PWM_R)
 #define COLD_PIN            TC825X_GET_PIN_NUM(PWM_G)
-
-#define  LIGHT_FREQ       48000
+#endif
+#define  LIGHT_FREQ       32000
 
 static pwm_dev_t light_led_c;
 static pwm_dev_t light_led_w;
@@ -96,6 +100,7 @@ static int _set_pwm_duty(uint8_t channel, uint8_t duty)
 
 static void _led_set(uint8_t onoff, uint16_t actual, uint16_t temperature)
 {
+    static uint8_t last_duty[LED_CHANNEL_MAX] = {0xFF, 0xFF};  //0~100
     uint8_t duty[LED_CHANNEL_MAX];  //0~100
 
     if(onoff == 0) {
@@ -105,7 +110,13 @@ static void _led_set(uint8_t onoff, uint16_t actual, uint16_t temperature)
         _get_led_duty(duty, actual, temperature);
     }
 
-    _set_pwm_duty(LED_COLD_CHANNEL, duty[LED_COLD_CHANNEL]);
-    _set_pwm_duty(LED_WARM_CHANNEL, duty[LED_WARM_CHANNEL]);
+    if(last_duty[LED_COLD_CHANNEL] != duty[LED_COLD_CHANNEL]) {
+        last_duty[LED_COLD_CHANNEL] = duty[LED_COLD_CHANNEL];
+        _set_pwm_duty(LED_COLD_CHANNEL, duty[LED_COLD_CHANNEL]);
+    }
+    if(last_duty[LED_WARM_CHANNEL] != duty[LED_WARM_CHANNEL]) {
+        last_duty[LED_WARM_CHANNEL] = duty[LED_WARM_CHANNEL];
+        _set_pwm_duty(LED_WARM_CHANNEL, duty[LED_WARM_CHANNEL]);
+    }
 }
 

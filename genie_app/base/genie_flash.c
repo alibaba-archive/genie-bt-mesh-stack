@@ -268,15 +268,15 @@ void _ginie_flash_get_enc_key(uint8_t project_key[16])
     uint8_t random[16];
     int32_t ret;
 
-    BT_DBG_R("project key: %s", bt_hex(project_key, 16));
+    BT_DBG("project key: %s", bt_hex(project_key, 16));
 
     memset(random, 0, 16);
     ret = hal_flash_read(HAL_PARTITION_CUSTOM_2, &offset, random, 16);
-    BT_DBG_R("random: %s[%d]", bt_hex(random, 16), ret);
+    BT_DBG("random: %s[%d]", bt_hex(random, 16), ret);
 
 
     bt_mesh_aes_encrypt(random, project_key, g_enc_key);
-    BT_DBG_R("enc key: %s", bt_hex(g_enc_key, 16));
+    BT_DBG("enc key: %s", bt_hex(g_enc_key, 16));
 }
 
 E_GENIE_FLASH_ERRCODE genie_flash_init(void)
@@ -888,7 +888,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_delete_seq(void)
     return GENIE_FLASH_SUCCESS;
 }
 
-#if defined(CONFIG_GENIE_DEBUG_CMD_FLASH)
+#if defined(CONFIG_GENIE_DEBUG_CMD)
 extern const hal_logic_partition_t hal_partitions[];
 static void _genie_print_data(hal_partition_t pno)
 {
@@ -974,19 +974,19 @@ void cmd_handle_flash_sys(char *pwbuf, int blen, int argc, char **argv)
     } else if(!strcmp(argv[1], "set")) {
         tmp = atol(argv[2]);
         ret = _genie_flash_write_data(GENIE_FLASH_PARTITION_SYSTEM, tmp);
-        printk("set count(%d), ret(%d)\n", tmp, ret);
+        BT_INFO("set count(%d), ret(%d)", tmp, ret);
     } else if(!strcmp(argv[1], "del")) {
         tmp = atol(argv[2]);
         ret = genie_flash_delete_reliable(tmp);
-        printk("del index(%d), ret(%d)\n", tmp, ret);
+        BT_INFO("del index(%d), ret(%d)", tmp, ret);
     } else if(!strcmp(argv[1], "dump")) {
         _genie_flash_dump(GENIE_FLASH_PARTITION_SYSTEM, atol(argv[2]));
     } else if(!strcmp(argv[1], "rst")) {
-        printk("delete mesh\n");
+        BT_INFO("delete mesh");
         genie_flash_reset_system();
         aos_reboot();
     } else {
-        printk("sys cmd error\n");
+        BT_INFO("sys cmd error");
     }
 }
 
@@ -1000,18 +1000,18 @@ void cmd_handle_flash_ud(char *pwbuf, int blen, int argc, char **argv)
     } else if(!strcmp(argv[1], "set")) {
         tmp = atol(argv[2]);
         ret = _genie_flash_write_data(GENIE_FLASH_PARTITION_USERDATA, tmp);
-        printk("set count(%d), ret(%d)\n", tmp, ret);
+        BT_INFO("set count(%d), ret(%d)", tmp, ret);
     } else if(!strcmp(argv[1], "del")) {
         tmp = atol(argv[2]);
         ret = genie_flash_delete_userdata(tmp);
-        printk("del index(%d), ret(%d)\n", tmp, ret);
+        BT_INFO("del index(%d), ret(%d)", tmp, ret);
     } else if(!strcmp(argv[1], "dump")) {
         _genie_flash_dump(GENIE_FLASH_PARTITION_USERDATA, atol(argv[2]));
     } else if(!strcmp(argv[1], "rst")) {
-        printk("erase userdata\n");
+        BT_INFO("erase userdata");
         genie_flash_erase_userdata();
     } else {
-        printk("ud cmd error\n");
+        BT_INFO("ud cmd error");
     }
 }
 
@@ -1022,16 +1022,16 @@ void cmd_handle_flash_seq(char *pwbuf, int blen, int argc, char **argv)
 
     if(!strcmp(argv[1], "get")) {
         ret = genie_flash_read_seq(&seq);
-        printk("get seq (%d), ret(%d)\n", seq, ret);
+        BT_INFO("get seq (%d), ret(%d)", seq, ret);
     } else if(!strcmp(argv[1], "set")) {
         seq = atol(argv[2]);
-        printk("set seq (%d), ret(%d)\n", seq, genie_flash_write_seq(&seq));
+        BT_INFO("set seq (%d), ret(%d)", seq, genie_flash_write_seq(&seq));
     } else if(!strcmp(argv[1], "del")) {
-        printk("del seq, ret(%d)\n", genie_flash_delete_seq());
+        BT_INFO("del seq, ret(%d)", genie_flash_delete_seq());
     } else if(!strcmp(argv[1], "dump")) {
         _genie_flash_dump(GENIE_FLASH_PARTITION_SEQ, atol(argv[2]));
     } else {
-        printk("seq cmd error\n");
+        BT_INFO("seq cmd error");
     }
 }
 

@@ -11,7 +11,7 @@ CPRE :=
 endif
 EXE_EXT:=$(shell which ls | grep -o .exe)
 
-gen_bin: copy_output_for_eclipse
+gen_bin:
 	@echo [INFO] Create bin files	
 	@mkdir $(MK_GENERATED_IMGS_PATH) $(MK_GENERATED_IMGS_PATH)/data -p
 	$(CPRE) mkdir -p $(MK_GENERATED_IMGS_PATH)/data/

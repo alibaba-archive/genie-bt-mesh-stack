@@ -12,6 +12,13 @@
 #define I2C_MEM_ADDR_SIZE_8BIT  1  /* i2c menory address size 8bit */
 #define I2C_MEM_ADDR_SIZE_16BIT 2  /* i2c menory address size 16bit */
 
+typedef enum {
+    I2C_BUS_SPEED_100K  = 0, ///< Standard Speed (100kHz)
+    I2C_BUS_SPEED_400K      = 1, ///< Fast Speed     (400kHz)
+    I2C_BUS_SPEED_1M = 2, ///< Fast+ Speed    (  1MHz)
+    I2C_BUS_SPEED_4M      = 3  ///< High Speed     (3.4MHz)
+} i2c_speed_t;
+
 typedef struct {
     uint32_t address_width;
     uint32_t freq;

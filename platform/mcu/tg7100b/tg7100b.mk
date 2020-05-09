@@ -68,6 +68,7 @@ $(NAME)_SOURCES += hal/pm.c \
                    hal/gpio.c  \
                    hal/timer.c \
                    hal/pwm.c  \
+                   hal/i2c.c  \
                    hal/common/device.c \
                    port/ali_dfu_port.c
 

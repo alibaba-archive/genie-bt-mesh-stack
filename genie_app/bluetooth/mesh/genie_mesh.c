@@ -87,11 +87,15 @@ static void _mesh_trans_timer_cycle(void *p_timer, void *p_arg)
     }
 }
 
+#define DELTA_ACTUAL_MIN 655
+#define DELTA_TEMP_MIN 192
+
 uint8_t calc_cur_state(elem_state_t * p_elem)
 {
     model_state_t *p_state = &p_elem->state;
     u32_t cur_time = k_uptime_get();
     uint8_t cycle = 0;
+    uint16_t delta;
 
     //stop cycle when timeout
     if(cur_time <= p_state->trans_end_time - MESH_TRNSATION_CYCLE) {
@@ -114,9 +118,23 @@ uint8_t calc_cur_state(elem_state_t * p_elem)
 #ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
         if(p_state->actual[T_CUR] != p_state->actual[T_TAR]) {
             if(p_state->actual[T_TAR] > p_state->actual[T_CUR]) {
-                p_state->actual[T_CUR] += (p_state->actual[T_TAR]-p_state->actual[T_CUR])/step;
+                delta = (p_state->actual[T_TAR]-p_state->actual[T_CUR])/step;
+                delta = delta>DELTA_ACTUAL_MIN ? delta : DELTA_ACTUAL_MIN;
+                if(0xFFFF - p_state->actual[T_CUR] < delta ||
+                  p_state->actual[T_TAR] - p_state->actual[T_CUR] < delta) {
+                    p_state->actual[T_CUR] = p_state->actual[T_TAR];
+                } else {
+                    p_state->actual[T_CUR] += delta;
+                }
             } else {
-                p_state->actual[T_CUR] -= (p_state->actual[T_CUR]-p_state->actual[T_TAR])/step;
+                delta = (p_state->actual[T_CUR]-p_state->actual[T_TAR])/step;
+                delta = delta>DELTA_ACTUAL_MIN ? delta : DELTA_ACTUAL_MIN;
+                if(p_state->actual[T_CUR] < delta ||
+                  p_state->actual[T_CUR] - delta < p_state->actual[T_TAR]) {
+                    p_state->actual[T_CUR] = p_state->actual[T_TAR];
+                } else {
+                    p_state->actual[T_CUR] -= delta;
+                }
             }
             //model_bind_operation(B_LIGHTNESS_ID, p_elem, T_CUR);
             cycle = 1;
@@ -125,9 +143,25 @@ uint8_t calc_cur_state(elem_state_t * p_elem)
 #ifdef CONFIG_MESH_MODEL_CTL_SRV
         if(p_state->temp[T_CUR] != p_state->temp[T_TAR]) {
             if(p_state->temp[T_TAR] > p_state->temp[T_CUR]) {
-                p_state->temp[T_CUR] += (p_state->temp[T_TAR]-p_state->temp[T_CUR])/step;
+                delta = (p_state->temp[T_TAR]-p_state->temp[T_CUR])/step;
+                delta = delta>DELTA_TEMP_MIN ? delta : DELTA_TEMP_MIN;
+                if(CTL_TEMP_MAX - p_state->temp[T_CUR] < delta ||
+                  p_state->temp[T_TAR] - p_state->temp[T_CUR] < delta) {
+                    p_state->temp[T_CUR] = p_state->temp[T_TAR];
+                } else {
+                    p_state->temp[T_CUR] += delta;
+                }
+                delta += p_state->temp[T_CUR];
+                p_state->temp[T_CUR] = delta>p_state->temp[T_TAR] ? p_state->temp[T_TAR] : delta;
             } else {
-                p_state->temp[T_CUR] -= (p_state->temp[T_CUR]-p_state->temp[T_TAR])/step;
+                delta = (p_state->temp[T_CUR]-p_state->temp[T_TAR])/step;
+                delta = delta>DELTA_TEMP_MIN ? delta : DELTA_TEMP_MIN;
+                if(p_state->temp[T_CUR] < delta+CTL_TEMP_MIN ||
+                  p_state->temp[T_CUR] - delta < p_state->temp[T_TAR]) {
+                    p_state->temp[T_CUR] = p_state->temp[T_TAR];
+                } else {
+                    p_state->temp[T_CUR] -= delta;
+                }
             }
             cycle = 1;
         }
@@ -890,15 +924,18 @@ void standart_indication(elem_state_t *p_elem)
         seg_count = get_seg_count(i + 4);
 
         reply_msg.opid = VENDOR_OP_ATTR_INDICATE;
-        if(g_version_tid == 0xFF) {
+        if(g_version_tid != 0xFF) {
+            reply_msg.tid = g_version_tid;
+        } else {
             reply_msg.tid = 0;
         }
         reply_msg.data = buff;
         reply_msg.len = i;
         reply_msg.p_elem = &elements[p_elem->elem_index];
-        reply_msg.retry_period = 120 * seg_count + 400;
+        //reply_msg.retry_period = GENIE_DEFAULT_DURATION * seg_count + SEG_RETRANSMIT_TIMEOUT;
+        reply_msg.retry_period = 125 * seg_count + 400;
         if(seg_count > 1) {
-            reply_msg.retry_period *= 2;
+            reply_msg.retry_period *= 2;    //(1 + SEG_RETRANSMIT_ATTEMPTS);
         }
         reply_msg.retry = VENDOR_MODEL_MSG_DFT_RETRY_TIMES;
 
@@ -1156,14 +1193,14 @@ int _vendor_timer_event(uint8_t event, uint8_t index, vendor_attr_data_t *data)
 static void _genie_mesh_ready(int err)
 {
     if (err) {
-        printk("Bluetooth init failed (err %d)\n", err);
+        BT_INFO("BT init err %d", err);
         return;
     }
 
-    printk(">>>Mesh initialized<<<\n");
+    BT_INFO(">>>Mesh initialized<<<");
     err = bt_mesh_init(&prov, &comp);
     if (err) {
-        printk("Initializing mesh failed (err %d)\n", err);
+        BT_INFO("mesh init err %d", err);
         return;
     }
 #ifdef MESH_MODEL_VENDOR_TIMER
@@ -1178,7 +1215,7 @@ void genie_mesh_init(void)
 {
     int ret;
 
-    printk("Initializing genie mesh...\n");
+    BT_INFO(">>>init genie<<<");
 
     genie_tri_tuple_load();
 
@@ -1199,7 +1236,7 @@ void genie_mesh_init(void)
 
     ret = bt_enable(_genie_mesh_ready);
     if (ret) {
-        printk("Bluetooth init failed (err %d)\n", ret);
+        BT_INFO("init err %d", ret);
     }
 }
 #endif

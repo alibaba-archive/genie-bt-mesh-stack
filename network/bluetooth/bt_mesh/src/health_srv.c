@@ -40,12 +40,12 @@ struct bt_mesh_model_pub health_pub = {
 
 static void attention_on(struct bt_mesh_model *model)
 {
-    printk("attention_on()\n");
+    BT_INFO("");
 }
 
 static void attention_off(struct bt_mesh_model *model)
 {
-    printk("attention_off()\n");
+    BT_INFO("");
 }
 
 static const struct bt_mesh_health_srv_cb health_srv_cb = {

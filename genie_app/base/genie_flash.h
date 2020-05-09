@@ -136,7 +136,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_write_seq(uint32_t *p_seq);
  */
 E_GENIE_FLASH_ERRCODE genie_flash_delete_seq(void);
 
-#if defined(CONFIG_GENIE_DEBUG_CMD_FLASH)
+#if defined(CONFIG_GENIE_DEBUG_CMD)
 /**
  * @brief the command line for degging system patition
  * @param[in] pwbuf: no used

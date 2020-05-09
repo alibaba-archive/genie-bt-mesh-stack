@@ -494,7 +494,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
     BT_DBG("OpCode 0x%08x", opcode);
 
 #ifdef MESH_DEBUG_RX
-    printf("\n");
+    MESH_MSG_RX("");
     MESH_MSG_RX("SRC: 0x%02X", rx->ctx.addr);
     MESH_MSG_RX("DST: 0x%02X", rx->dst);
     MESH_MSG_RX("OPCODE: 0x%04X", opcode);
@@ -606,10 +606,9 @@ static int model_send(struct bt_mesh_model *model,
     }
 
 #ifdef MESH_DEBUG_TX
-    printf("\n");
+    MESH_MSG_TX("");
     MESH_MSG_TX("SRC: 0x%02X", model->elem->addr);
     MESH_MSG_TX("DST: 0x%02X", tx->ctx->addr);
-    //MESH_MSG_TX("OPCODE: 0x%04X", opcode);
     MESH_MSG_TX("msg size: %d", msg->len);
     MESH_MSG_TX_BUFF(msg->data, msg->len);
 #endif

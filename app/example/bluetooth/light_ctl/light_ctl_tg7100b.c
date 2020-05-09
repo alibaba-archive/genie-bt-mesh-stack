@@ -14,7 +14,7 @@ static pwm_dev_t light_led_c;
 static pwm_dev_t light_led_w;
 
 uint16_t duty_list[] = {
-    #include "duty_list.h"
+    #include "duty_list_fsl.h"
 };
 
 /**@brief   Function for the LEDs initialization.
@@ -27,18 +27,13 @@ static void _led_init(void)
     light_led_c.config.duty_cycle = 0;
     light_led_c.config.freq = LIGHT_PERIOD;
     hal_pwm_init(&light_led_c);
-
-    /* To avoid float state, we set it pull up first */
-    drv_pinmux_config(light_led_c.port, PIN_FUNC_GPIO);
-    phy_gpio_pull_set(light_led_c.port, STRONG_PULL_UP);
+    hal_pwm_start(&light_led_c);
 
     light_led_w.port = WARM_PIN;
     light_led_w.config.duty_cycle = 0;
     light_led_w.config.freq = LIGHT_PERIOD;
     hal_pwm_init(&light_led_w);
-    /* To avoid float state, we set it pull up first */
-    drv_pinmux_config(light_led_w.port, PIN_FUNC_GPIO);
-    phy_gpio_pull_set(light_led_w.port, STRONG_PULL_UP);
+    hal_pwm_start(&light_led_w);
 }
 
 //temperature 800~20000
@@ -71,11 +66,7 @@ static void _get_led_duty(uint8_t *p_duty, uint16_t actual, uint16_t temperature
     }
 
     //LIGHT_DBG("%d %d [%d %d] [%d %d]", actual, temperature, warm, cold, p_duty[LED_COLD_CHANNEL], p_duty[LED_WARM_CHANNEL]);
-#ifdef DUTY_TRANS_TEST
-    g_c_duty_test[duty_test_idx] = p_duty[LED_COLD_CHANNEL];
-    g_w_duty_test[duty_test_idx] = p_duty[LED_WARM_CHANNEL];
-    duty_test_idx++;
-#endif
+
 }
 
 static int _set_pwm_duty(uint8_t channel, uint8_t duty)
@@ -105,16 +96,14 @@ static int _set_pwm_duty(uint8_t channel, uint8_t duty)
         LIGHT_DBG("pwm err %d\n", err);
         return -1;
         }
-    if (pwm_dev != NULL && pwm_cfg.duty_cycle == 0) {
-        drv_pinmux_config(pwm_dev->port, PIN_FUNC_GPIO);
-        phy_gpio_pull_set(pwm_dev->port, STRONG_PULL_UP);
-    }
+
     return 0;
 }
 
 //lightness 1-65535
 static void _led_set(uint8_t onoff, uint16_t actual, uint16_t temperature)
 {
+    static uint8_t last_duty[LED_CHANNEL_MAX] = {0xFF, 0xFF};
     uint8_t duty[LED_CHANNEL_MAX];  //0~100
 
     if(onoff == 0) {
@@ -124,7 +113,13 @@ static void _led_set(uint8_t onoff, uint16_t actual, uint16_t temperature)
         _get_led_duty(duty, actual, temperature);
     }
 
-    _set_pwm_duty(LED_COLD_CHANNEL, duty[LED_COLD_CHANNEL]);
-    _set_pwm_duty(LED_WARM_CHANNEL, duty[LED_WARM_CHANNEL]);
+    if(last_duty[LED_COLD_CHANNEL] != duty[LED_COLD_CHANNEL]) {
+        last_duty[LED_COLD_CHANNEL] = duty[LED_COLD_CHANNEL];
+        _set_pwm_duty(LED_COLD_CHANNEL, duty[LED_COLD_CHANNEL]);
+    }
+    if(last_duty[LED_WARM_CHANNEL] != duty[LED_WARM_CHANNEL]) {
+        last_duty[LED_WARM_CHANNEL] = duty[LED_WARM_CHANNEL];
+        _set_pwm_duty(LED_WARM_CHANNEL, duty[LED_WARM_CHANNEL]);
+    }
 }
 

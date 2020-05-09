@@ -625,11 +625,11 @@ void bind_lightness_with_onoff(elem_state_t *p_elem, E_VALUE_TYPE type)
         if(p_state->onoff[T_CUR] == 0 && p_state->onoff[T_TAR] == 1) {
             //turn on, set default lightness
 #ifdef CONFIG_ALI_SIMPLE_MODLE
-        if(p_elem->powerup.last_actual) {
-            p_state->actual[T_TAR] = p_elem->powerup.last_actual;
-        } else {
-            p_state->actual[T_TAR] = LIGHTNESS_DEFAULT;
-        }
+            if(p_elem->powerup.last_actual) {
+                p_state->actual[T_TAR] = p_elem->powerup.last_actual;
+            } else {
+                p_state->actual[T_TAR] = LIGHTNESS_DEFAULT;
+            }
 #endif
 #ifdef CONFIG_MESH_MODEL_VENDOR_SRV
             g_indication_flag |= INDICATION_FLAG_LIGHTNESS;

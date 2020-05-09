@@ -196,11 +196,11 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
 {
     E_GENIE_EVENT next_event = event;
 
-    //BT_DBG_R("%s, %s %p\n", __func__, genie_event_str[event], p_arg);
+    //BT_DBG("%s, %s %p\n", __func__, genie_event_str[event], p_arg);
     switch(event) {
         case GENIE_EVT_SW_RESET:
         case GENIE_EVT_HW_RESET_START:
-            BT_DBG_R("FLASH x5");
+            BT_DBG("FLASH x5");
             led_flash(5);
             reset_light_para();
             break;
@@ -211,7 +211,7 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
             }
             break;
         case GENIE_EVT_SDK_MESH_PROV_SUCCESS:
-            BT_DBG_R("FLASH x3");
+            BT_DBG("FLASH x3");
             led_flash(3);
             break;
         case GENIE_EVT_SDK_ACTION_DONE:

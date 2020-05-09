@@ -715,7 +715,7 @@ int vendor_timer_remove(int8_t index)
 
 void vendor_timer_local_time_show()
 {
-    printk("%4d/%2d/%2d %2d:%2d:%d weekday %2d %04d\n",
+    VT_DEBUG("%4d/%2d/%2d %2d:%2d:%d weekday %2d %04d\n",
            local_time.year, local_time.month + 1, local_time.day,
            local_time.hour, local_time.minutes, local_time.seconds,
            local_time.weekday, g_timing_data.timezone);

@@ -301,7 +301,7 @@ void dfu_reboot()
 {
 	ota_set_flag ();
 	printf("%s called\n", __FUNCTION__);
-	show_ota_result(0); // success
+	//show_ota_result(0); // success
 
 	hal_reboot();
 }

@@ -29,7 +29,7 @@ static void _set_tri_tuple(char *pwbuf, int blen, int argc, char **argv)
 
     if (argc != 4)
     {
-        printk("para error!!!\n");
+        BT_INFO("para err");
         return;
     }
 
@@ -53,19 +53,18 @@ static void _reboot_handle(char *pwbuf, int blen, int argc, char **argv)
     aos_reboot();
 }
 
+#if defined(CONFIG_GENIE_DEBUG_CMD)
 void print_sw_info(void)
 {
 #if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
     printf("DEVICE:%s\n", CONFIG_BT_DEVICE_NAME);
     printf("SW VER:%08x\n", PROJECT_SW_VERSION);
     printf("SDK:v%s\n", APP_SDK_VERSION);
-    printf("OS:v%d\n", SYSINFO_OS_VERSION);
     printf("PROUDUCT:%s\n", SYSINFO_PRODUCT_MODEL);
 #else
     BT_INFO("DEVICE:%s", CONFIG_BT_DEVICE_NAME);
     BT_INFO("SW VER:%08x", PROJECT_SW_VERSION);
     BT_INFO("SDK:v%s", APP_SDK_VERSION);
-    BT_INFO("OS:v%d", SYSINFO_OS_VERSION);
     BT_INFO("PROUDUCT:%s", SYSINFO_PRODUCT_MODEL);
 #endif
 }
@@ -110,7 +109,7 @@ static void _send_msg(char *pwbuf, int blen, int argc, char **argv)
     msg = NET_BUF_SIMPLE(32);
 
     if(msg == NULL) {
-        printk("no buff\n");
+        BT_INFO("no buff");
         return;
     }
 
@@ -123,29 +122,30 @@ static void _send_msg(char *pwbuf, int blen, int argc, char **argv)
     p_model = bt_mesh_model_find_vnd(elements, BT_MESH_MODEL_VND_COMPANY_ID, BT_MESH_MODEL_VND_MODEL_SRV);
 #endif
     if(p_model == NULL) {
-        printk("no model\n");
+        BT_INFO("no model");
         return;
     }
 
     if (bt_mesh_model_send(p_model, &ctx, msg, NULL, NULL)) {
-        printk("Unable to send\n");
+        BT_INFO("Unable to send");
     }
 }
+#endif
 
 static const struct cli_command genie_cmds[] = {
     {"get_tt", "get tri truple", _get_tri_tuple},
     {"set_tt", "set_tt pid mac key", _set_tri_tuple},
     {"reboot", "reboot", _reboot_handle},
 
-#if defined(CONFIG_GENIE_DEBUG_CMD_FLASH)
+#if defined(CONFIG_GENIE_DEBUG_CMD)
     {"seq", "seq test", cmd_handle_flash_seq},
     {"sys", "sys flash", cmd_handle_flash_sys},
     {"ud", "userdata teest", cmd_handle_flash_ud},
-#endif
 
     {"get_info", "get sw info", _get_sw_info},
     {"mm_info", "get mm info", _get_mm_info},
     {"msg", "send mesh msg", _send_msg},
+#endif
 };
 
 void genie_cmds_register(void)

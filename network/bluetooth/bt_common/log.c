@@ -21,7 +21,7 @@
 
 #include "include/common/log.h"
 
-#if /*defined(CONFIG_BT_DEBUG) && */defined(USE_BT_MESH_CUSTOM_LOG)
+#if defined(CONFIG_BT_DEBUG)
 const char *bt_hex(const void *buf, size_t len)
 {
     static const char hex[] = "0123456789abcdef";
@@ -51,34 +51,8 @@ const char *bt_hex(const void *buf, size_t len)
 #else
 const char *bt_hex(const void *buf, size_t len)
 {
-#if 0
 	static const char hint_str[] = "N/A";
 	return hint_str;
-#else
-    static const char hex[] = "0123456789abcdef";
-    static char hexbufs[4][129];
-    static u8_t curbuf;
-    const u8_t *b = buf;
-    unsigned int mask;
-    char *str;
-    int i;
-
-    mask = irq_lock();
-    str = hexbufs[curbuf++];
-    curbuf %= ARRAY_SIZE(hexbufs);
-    irq_unlock(mask);
-
-    len = min(len, (sizeof(hexbufs[0]) - 1) / 2);
-
-    for (i = 0; i < len; i++) {
-        str[i * 2]     = hex[b[i] >> 4];
-        str[i * 2 + 1] = hex[b[i] & 0xf];
-    }
-
-    str[i * 2] = '\0';
-
-    return str;
-#endif
 }
 #endif
 
@@ -90,7 +64,7 @@ u8_t stringtohex(char *str, u8_t *out, u8_t count)
     memset(out , 0, count);
     if(strlen(str) != count<<1)
     {
-        BT_PRT("string size error, %d\r\n", strlen(str));
+        BT_INFO("string size error, %d\r\n", strlen(str));
         return 0;
     }
     
@@ -113,12 +87,12 @@ u8_t stringtohex(char *str, u8_t *out, u8_t count)
             }
             else
             {
-                BT_PRT("string error, %c\r\n", str[n]);
+                BT_INFO("string error, %c\r\n", str[n]);
                 return 0;
             }
             j++;
         }
-        //BT_PRT(">>%02x %d %d\r\n", out[i], i ,j);
+        //BT_INFO(">>%02x %d %d\r\n", out[i], i ,j);
         j = 0;
         i++;
     }

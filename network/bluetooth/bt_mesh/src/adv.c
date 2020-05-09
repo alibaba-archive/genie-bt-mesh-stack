@@ -48,7 +48,7 @@
 #define ADV_INT_DEFAULT  K_MSEC(100)
 #define ADV_INT_FAST     K_MSEC(20)
 
-#define GENIE_DEFAULT_DURATION 120
+#define GENIE_DEFAULT_DURATION 125
 
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.

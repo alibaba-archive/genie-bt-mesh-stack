@@ -2963,7 +2963,7 @@ set_addr:
     return 0;
 }
 
-#if defined(CONFIG_BT_DEBUG)
+#if defined(CONFIG_BT_DEBUG) && BT_DBG_ENABLED
 static const char *ver_str(u8_t ver)
 {
     const char *const str[] = {
@@ -2992,7 +2992,7 @@ static inline void show_dev_info(void) {}
 #endif /* CONFIG_BT_DEBUG */
 
 #if defined(CONFIG_BT_HCI_VS_EXT)
-#if defined(CONFIG_BT_DEBUG)
+#if defined(CONFIG_BT_DEBUG) && BT_DBG_ENABLED
 static const char *vs_hw_platform(u16_t platform)
 {
     static const char *const plat_str[] = { "reserved", "Intel Corporation",
@@ -3067,7 +3067,7 @@ static void hci_vs_init(void)
         return;
     }
 
-#if defined(CONFIG_BT_DEBUG)
+#if defined(CONFIG_BT_DEBUG) && BT_DBG_ENABLED
     rp.info = (void *)rsp->data;
     BT_INFO("HW Platform: %s (0x%04x)",
             vs_hw_platform(sys_le16_to_cpu(rp.info->hw_platform)),
@@ -3141,7 +3141,9 @@ static int hci_init(void)
         }
     }
 
+#if defined(CONFIG_BT_DEBUG) && BT_DBG_ENABLED
     show_dev_info();
+#endif
     return 0;
 }
 

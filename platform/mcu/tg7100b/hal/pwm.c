@@ -70,13 +70,6 @@ int32_t hal_pwm_init(pwm_dev_t *pwm)
     if (pwm == NULL) {
         return -1;
     }
-    pwm_handlers = csi_pwm_initialize(0);
-
-    if (!pwm_handlers) {
-        printk("init faild\n");
-        return -1;
-    }
-
 
     ret = search_pwm_func(pwm->port, &func);
     if (ret) {
@@ -84,6 +77,15 @@ int32_t hal_pwm_init(pwm_dev_t *pwm)
         if (ret) {
             return -1;
         }
+    }
+
+    drv_pinmux_config(pwm->port, func);
+
+    pwm_handlers = csi_pwm_initialize(0);
+
+    if (!pwm_handlers) {
+        printk("init faild\n");
+        return -1;
     }
     return 0;
 }
@@ -173,18 +175,11 @@ int32_t hal_pwm_para_chg(pwm_dev_t *pwm, pwm_config_t para)
 
     //printf("port %d, chan %d period_us %d, duty %d\n", pwm->port, pwm_chn, para.freq, para.duty_cycle);
 
-    if (duty_cycle == 0) {
-        csi_pwm_stop(pwm_handlers, pwm_chn);
-    } else {
-        drv_pinmux_config(pwm->port, func);
         ret = csi_pwm_config(pwm_handlers, pwm_chn, period_us, duty_cycle);
-
         if (ret) {
             return -1;
         }
 
-//        csi_pwm_start(pwm_handlers, pwm_chn);
-    }
     return 0;
 }
 

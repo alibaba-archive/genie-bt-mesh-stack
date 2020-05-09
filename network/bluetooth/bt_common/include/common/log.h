@@ -78,9 +78,6 @@ __printf_like(2, 3) void bt_log(int prio, const char *fmt, ...);
 #define BT_STACK_DEBUG_EXTRA    10
 #endif
 
-#if BT_DBG_ENABLED
-#define BT_PRT printf
-#endif
 #else
 
 #define BT_DBG(fmt, ...)
@@ -92,33 +89,29 @@ __printf_like(2, 3) void bt_log(int prio, const char *fmt, ...);
 
 #endif
 
+#ifdef CONFIG_INFO_DISABLE
+#ifdef BT_INFO
+#undef BT_INFO
+#endif
+#define BT_INFO(fmt, ...)
+#endif
+
 #ifdef GENIE_DEBUG_COLOR
-#define F_BLACK  "\033[0;30m"
 #define F_RED    "\033[0;31m"
 #define F_GREEN  "\033[0;32m"
-#define F_YELLOW "\033[0;33m"
 #define F_BLUE   "\033[0;34m"
-#define F_PURPLE "\033[0;35m"
-#define F_DGREEN "\033[0;36m"
-#define F_WHITE  "\033[0;37m"
 #define F_END    "\033[0m"
-#define BT_DBG_R(fmt, ...)                    \
-                                if (BT_DBG_ENABLED) {                   \
-                                    SYS_LOG_DBG(F_RED "[%s]" fmt F_END, __func__,   \
-                ##__VA_ARGS__);             \
-                                }
+#define BT_INFO_R(fmt, ...) SYS_LOG_DBG(F_RED fmt F_END, ##__VA_ARGS__);
+#define BT_INFO_G(fmt, ...) SYS_LOG_DBG(F_GREEN fmt F_END, ##__VA_ARGS__);
+#define BT_INFO_B(fmt, ...) SYS_LOG_DBG(F_BLUE fmt F_END, ##__VA_ARGS__);
 #else
-#define F_BLACK
 #define F_RED
 #define F_GREEN
-#define F_YELLOW
 #define F_BLUE
-#define F_PURPLE
-#define F_DGREEN
-#define F_WHITE
 #define F_END
-
-#define BT_DBG_R(fmt, ...)
+#define BT_INFO_R(fmt, ...)
+#define BT_INFO_G(fmt, ...)
+#define BT_INFO_B(fmt, ...)
 #endif
 
 #define MESH_MSG_TAG "[MESH] "
@@ -144,7 +137,7 @@ __printf_like(2, 3) void bt_log(int prio, const char *fmt, ...);
 #endif
 
 #ifdef MESH_DEBUG_TX
-#define TX_COLOR F_YELLOW
+#define TX_COLOR F_GREEN
 #define MESH_TX_TAG "<<<<\t[TX]"
 #define MESH_MSG_TX(f, ...) printf(TX_COLOR MESH_TX_TAG MESH_MSG_TAG f F_END"\n", ##__VA_ARGS__);
 #define MESH_MSG_TX_BUFF(buff, len) {                                       \
@@ -162,11 +155,6 @@ __printf_like(2, 3) void bt_log(int prio, const char *fmt, ...);
 #define MESH_MSG_TX_BUFF(fmt, ...)
 #endif
 
-#ifndef BT_PRT
-#define BT_PRT(fmt, ...)
-#endif
-
-
 #define BT_ASSERT(cond) if (!(cond)) {                  \
                 BT_ERR("assert: '" #cond "' failed");   \
                 k_oops();                               \
@@ -182,7 +170,6 @@ const char *bt_hex(const void *buf, size_t len);
 
 u8_t stringtohex(char *str, u8_t *out, u8_t count);
 void hextostring(const uint8_t *source, char *dest, int len);
-u8_t stringtohex(char *str, u8_t *out, u8_t count);
 
 /* These helpers are only safe to be called from internal threads as they're
  * not multi-threading safe

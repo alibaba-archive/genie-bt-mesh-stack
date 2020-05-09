@@ -63,8 +63,11 @@ const char *genie_event_str[] = {
     "APP->FAC_QUIT",
 };
 
-#define GENIE_MESH_EVENT_PRINT(id) BT_DBG(F_YELLOW "%s" F_END, genie_event_str[id])
-
+#if BT_DBG_ENABLED
+#define GENIE_MESH_EVENT_PRINT(id) BT_INFO_G("%s", genie_event_str[id])
+#else
+#define GENIE_MESH_EVENT_PRINT(id)
+#endif
 static void _genie_reset_prov(void)
 {
     g_genie_provisioned = 0;
@@ -123,7 +126,9 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
     ais_check_ota_change();
 #endif
 
+#if defined(CONFIG_GENIE_DEBUG_CMD)
     print_sw_info();
+#endif
 
     // bit0:unicast_address
     // bit1:seq
@@ -139,7 +144,7 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
     }
 #ifdef CONIFG_OLD_FLASH_PARA
     if(genie_flash_read_para(&bt_mesh) == GENIE_FLASH_SUCCESS){
-        BT_DBG_R("read old");
+        BT_DBG("read old");
         read_flag |= 0x1C;  //0001 1100
         // save data by new format.
         memcpy(devkey, bt_mesh.dev_key, 16);
@@ -170,7 +175,7 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
 
     BT_DBG("flag %02x", read_flag);
     if((read_flag & 0x1F) == 0x1F) {
-        printk(F_GREEN ">>>proved<<<\n" F_END);
+        BT_INFO_G(">>>proved<<<");
 
         bt_mesh_provision(netkey.key, netkey.net_index, netkey.flag, netkey.ivi, seq, addr, devkey);
         extern void genie_appkey_register(u16_t net_idx, u16_t app_idx, const u8_t val[16], bool update);
@@ -196,11 +201,11 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
             return GENIE_EVT_HW_RESET_START;
         }
     } else if(read_flag){
-        printk(F_YELLOW ">>>error<<<\n" F_END);
+        BT_INFO_R(">>>error<<<");
         genie_flash_reset_system();
         aos_reboot();
     } else {
-        printk(F_RED ">>>unprovisioned<<<\n" F_END);
+        BT_INFO_B(">>>unprovisioned<<<");
         if (genie_reset_get_flag()) {
             return GENIE_EVT_HW_RESET_START;
         }

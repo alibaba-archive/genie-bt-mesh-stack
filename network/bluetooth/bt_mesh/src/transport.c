@@ -52,7 +52,7 @@
 #define SEG_RETRANSMIT_TIMEOUT      K_MSEC(400)
 
 /* Number of retransmit attempts (after the initial transmit) per segment */
-#define SEG_RETRANSMIT_ATTEMPTS     0
+#define SEG_RETRANSMIT_ATTEMPTS     1
 
 /* How long to wait for available buffers before giving up */
 #define BUF_TIMEOUT                 K_NO_WAIT
@@ -472,7 +472,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	} else {
 		tx->aszmic = 1;
 	}
-    BT_DBG_R("tailroom %d aszmic %d", net_buf_simple_tailroom(msg), tx->aszmic);
+    BT_DBG("tailroom %d aszmic %d", net_buf_simple_tailroom(msg), tx->aszmic);
 
 	if (BT_MESH_ADDR_IS_VIRTUAL(tx->ctx->addr)) {
 		ad = bt_mesh_label_uuid_get(tx->ctx->addr);
@@ -838,8 +838,7 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 		return 0;
 	}
 
-	bool estblshed = bt_mesh_lpn_established();
-	BT_DBG("%s %d, estblshed: %d", __func__, __LINE__, estblshed);
+	BT_DBG("%s %d, estblshed: %d", __func__, __LINE__, bt_mesh_lpn_established());
 
 #if defined(CONFIG_BT_MESH_FRIEND)
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && !bt_mesh_lpn_established()) {

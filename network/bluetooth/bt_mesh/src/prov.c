@@ -1089,8 +1089,6 @@ static void prov_data(const u8_t *data)
         return;
     }
 
-    BT_INFO("dk %s", bt_hex(dev_key, 16));
-
     net_idx = sys_get_be16(&pdu[16]);
     flags = pdu[18];
     iv_index = sys_get_be32(&pdu[19]);

@@ -22,9 +22,8 @@
 #include <soc.h>
 #include <api/mesh.h>
 #include "genie_app.h"
-#define BT_DBG_ENABLED 1
 
-#if BT_DBG_ENABLED
+#ifndef CONFIG_INFO_DISABLE
 #define LIGHT_DBG(fmt, ...)  printf("[%s]"fmt"\n", __func__, ##__VA_ARGS__)
 #else
 #define LIGHT_DBG(fmt, ...)
@@ -123,10 +122,10 @@ bool ota_check_reboot(void)
         // save light para, always off
         g_powerup[0].last_onoff = 0;
         genie_flash_write_userdata(GFI_MESH_POWERUP, (uint8_t *)g_powerup, sizeof(g_powerup));
-        BT_DBG_R("reboot!");
+        BT_DBG("reboot!");
         return true;
     }
-    BT_DBG_R("no reboot!");
+    BT_DBG("no reboot!");
     return false;
 }
 #endif
@@ -172,7 +171,7 @@ static void _init_light_para(void)
                 if(g_powerup[0].last_temp) {
                     g_elem_state[0].state.temp[T_TAR] = g_powerup[0].last_temp;
                 }
-                LIGHT_DBG("load %d %d", g_powerup[0].last_actual, g_powerup[0].last_temp);
+                LIGHT_DBG("l:%d t:%d", g_powerup[0].last_actual, g_powerup[0].last_temp);
 
                 // cal transition
                 if(g_elem_state[0].state.onoff[T_TAR] == 1) {
@@ -262,11 +261,11 @@ static void _led_ctrl(elem_state_t *p_elem)
     uint16_t actual = p_elem->state.actual[T_CUR];
     uint16_t temperature = p_elem->state.temp[T_CUR];
 
-    //LIGHT_DBG("%d,%d,%d", on, actual, temperature);
     if(last_onoff != onoff || last_acual != actual || last_temperature != temperature) {
         last_onoff = onoff;
         last_acual = actual;
         last_temperature = temperature;
+        //LIGHT_DBG("%d,%d,%d", onoff, actual, temperature);
         _led_set(onoff, actual, temperature);
     }
 }
@@ -348,7 +347,7 @@ static void _led_flash(uint8_t times, uint8_t reset)
         }
         g_flash_para.time_end = k_uptime_get() + times*LED_FLASH_PERIOD - LED_FLASH_OFF_TIME;
     }
-    LIGHT_DBG("flash %d before %d, end %04x", times, g_flash_para.time_end, g_flash_para.actual_tar);
+    LIGHT_DBG("%d (%d-%d) tar %04x", times, k_uptime_get(), g_flash_para.time_end, g_flash_para.actual_tar);
 
     k_timer_start(&g_flash_para.timer, LED_FLASH_CYCLE);
 }
@@ -357,16 +356,15 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
 {
     E_GENIE_EVENT next_event = event;
 
-    //BT_DBG_R("%s, %s %p\n", __func__, genie_event_str[event], p_arg);
+    //BT_DBG("%s, %s %p\n", __func__, genie_event_str[event], p_arg);
     switch(event) {
         case GENIE_EVT_SW_RESET:
         case GENIE_EVT_HW_RESET_START:
             _led_flash(5, 1);
-            BT_DBG_R("FLASH x5");
             break;
         case GENIE_EVT_HW_RESET_DONE:
             _reset_light_para();
-            printk("GENIE_EVT_HW_RESET_DONE\n");
+            BT_DBG("GENIE_EVT_HW_RESET_DONE\n");
             break;
         case GENIE_EVT_SDK_MESH_INIT:
             _led_init();
@@ -377,7 +375,6 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
             }
             break;
         case GENIE_EVT_SDK_MESH_PROV_SUCCESS:
-            BT_DBG_R("FLASH x3");
             _led_flash(3, 0);
             break;
         case GENIE_EVT_SDK_TRANS_CYCLE:
@@ -406,7 +403,7 @@ int application_start(int argc, char **argv)
 {
     genie_init();
 
-    printk("BUILD_TIME:%s\n", __DATE__","__TIME__);
+    BT_INFO("BUILD_TIME:%s", __DATE__","__TIME__);
 
 #ifndef BOARD_TC825X
     // telink will run while(1) of sys_init later.

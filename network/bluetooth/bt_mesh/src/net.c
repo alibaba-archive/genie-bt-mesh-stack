@@ -457,7 +457,7 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 
     BT_DBG("idx %u flags 0x%02x iv_index %u", idx, flags, iv_index);
 
-    BT_DBG_R("NetKey %s", bt_hex(key, 16));
+    BT_DBG("NetKey %s", bt_hex(key, 16));
 
     if (bt_mesh.valid) {
         return -EALREADY;

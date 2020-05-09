@@ -130,9 +130,7 @@ static struct bt_att *att_get(struct bt_conn *conn)
 
 static void att_cfm_sent(struct bt_conn *conn)
 {
-    struct bt_att *att = att_get(conn);
-
-    BT_DBG("conn %p att %p", conn, att);
+    BT_DBG("conn %p att %p", conn, att_get(conn));
 
 #if defined(CONFIG_BT_ATT_ENFORCE_FLOW)
     atomic_clear_bit(att->flags, ATT_PENDING_CFM);
@@ -141,8 +139,7 @@ static void att_cfm_sent(struct bt_conn *conn)
 
 static void att_rsp_sent(struct bt_conn *conn)
 {
-    struct bt_att *att = att_get(conn);
-    BT_DBG("conn %p att %p", conn, att);
+    BT_DBG("conn %p att %p", conn, att_get(conn));
 
 #if defined(CONFIG_BT_ATT_ENFORCE_FLOW)
     atomic_clear_bit(att->flags, ATT_PENDING_RSP);
@@ -163,9 +160,7 @@ static void att_req_sent(struct bt_conn *conn)
 
 static void att_pdu_sent(struct bt_conn *conn)
 {
-    struct bt_att *att = att_get(conn);
-
-    BT_DBG("conn %p att %p", conn, att);
+    BT_DBG("conn %p att %p", conn, att_get(conn));
 }
 
 static bt_conn_tx_cb_t att_cb(struct net_buf *buf)

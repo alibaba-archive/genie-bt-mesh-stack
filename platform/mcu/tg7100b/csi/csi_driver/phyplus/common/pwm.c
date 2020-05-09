@@ -24,7 +24,7 @@
 #define PWM_NULL_PARAM_CHK(para)          HANDLE_PARAM_CHK(para, ERR_PWM(DRV_ERROR_PARAMETER))
 #define PWM_NULL_PARAM_CHK_NORETVAL(para) HANDLE_PARAM_CHK_NORETVAL(para, ERR_PWM(DRV_ERROR_PARAMETER))
 
-#define PWM_BASE_FREQ 8000000
+#define PWM_BASE_FREQ 16000000
 #define S_US 1000000
 #define MAX_CNT_TIME_US (S_US * 65535)
 #define MAX_DIV 7   /*MAV div val 1 << 7 = 128*/
@@ -108,7 +108,6 @@ typedef struct {
     uint16_t cntTopVal;
 } ck_pwm_priv_t;
 
-#define pwm_ch_t ck_pwm_priv_t
 
 typedef struct {
     bool          	enable;
@@ -239,14 +238,10 @@ int32_t csi_pwm_config(pwm_handle_t handle,
     ck_pwm_priv_t *p = &base->ch[channel];
     int ch_en = base->ch_en[p->pwmN];
 
-    if (ch_en == TRUE) {
-        csi_pwm_stop(handle, channel);
-    }
 
-    base->ch_en[channel] = false;
     p->pwmN = channel;
     p->pwmPolarity = PWM_POLARITY_FALLING;
-    p->pwmMode = PWM_CNT_UP_AND_DOWN;
+    p->pwmMode = PWM_CNT_UP;
 
     uint32_t div = BIT(p->pwmDiv & 0XFF);
     p->cntTopVal = PWM_BASE_FREQ / div / (S_US / period_us);
@@ -255,20 +250,24 @@ int32_t csi_pwm_config(pwm_handle_t handle,
     if (p->cmpVal <= 0) {
         p->cmpVal = 1;
     }
-
-    phy_pwm_init(p->pwmN, p->pwmDiv, p->pwmMode, p->pwmPolarity);
-    phy_pwm_set_count_val(channel, p->cmpVal, p->cntTopVal);
-
-    if (ch_en == TRUE) {
-        csi_pwm_start(handle, channel);
+    if (p->cmpVal == p->cntTopVal) {
+        p->cmpVal --;
     }
 
+    if (ch_en == FALSE) {
+        phy_pwm_init(p->pwmN, p->pwmDiv, p->pwmMode, p->pwmPolarity);
+    }
+
+    phy_pwm_set_count_val(channel, p->cmpVal, p->cntTopVal);
     return 0;
 }
 
 void csi_pwm_start(pwm_handle_t handle, uint8_t channel)
 {
+    pwm_Ctx_t *base = handle;
+    ck_pwm_priv_t *p = &base->ch[channel];
     if (handle !=  NULL) {
+        phy_pwm_init(channel, p->pwmDiv, PWM_CNT_UP, PWM_POLARITY_FALLING);
         phy_pwm_ch_start(channel);
     }
 }

@@ -27,8 +27,8 @@ struct k_timer g_vnd_msg_timer;
  * vendor model publish context, alloc maximum message buffer size
  * */
 struct bt_mesh_model_pub g_vendor_model_alibaba_pub = {
-    //max = 2 seg package
-    .msg = NET_BUF_SIMPLE(3 + 17 + 4), // allocate maximum payload size
+    //max = 3 seg package
+    .msg = NET_BUF_SIMPLE(3 + 29 + 4), // allocate maximum payload size
 };
 
 /** @def vendor_model_msg_gen_tid
@@ -228,6 +228,7 @@ static s16_t _vendor_model_msg_check_tid(sys_dlist_t *p_head, u8_t tid) {
     extern uint8_t g_version_tid;
     if(g_version_tid != 0xFF && g_version_tid == tid) {
         ais_clear_ota_indicat();
+        g_version_tid = 0xFF;
     }
 #endif
 
@@ -235,6 +236,7 @@ static s16_t _vendor_model_msg_check_tid(sys_dlist_t *p_head, u8_t tid) {
      * go through message list and dequeue the vendor model's message and free it if received message
      * s tid equals this message's tid
      * */
+    BT_DBG("recv %02x", tid);
     SYS_DLIST_FOR_EACH_NODE(p_head, p_node) {
         vnd_model_msg *p_msg = NULL;
         vnd_model_msg_n *p_msg_node = NULL;
@@ -242,6 +244,7 @@ static s16_t _vendor_model_msg_check_tid(sys_dlist_t *p_head, u8_t tid) {
         p_msg_node = CONTAINER_OF(p_node, vnd_model_msg_n, node);
         p_msg = &p_msg_node->msg;
 
+        BT_DBG("msg %02x", p_msg->tid);
         if (p_msg->tid == tid) {
             BT_DBG("dequeue msg:%p, opid:%x, retry:%d", p_msg, p_msg->opid, p_msg->retry);
             sys_dlist_remove(p_node);
@@ -279,23 +282,46 @@ s16_t vendor_model_msg_send(vnd_model_msg *p_model_msg)
     }
 
     BT_DBG("p_model:%p, cid:0x%x, id:0x%x, retry:%d", p_model, p_model->vnd.company, p_model->vnd.id, p_model_msg->retry);
+
+    if(p_model_msg->tid == 0) {
+        p_model_msg->tid = vendor_model_msg_gen_tid();
+    }
+    BT_DBG("tid:%02x", p_model_msg->tid);
+
+    BT_DBG("opcode:%02x", p_model_msg->opid);
     /**
      * no need to duplicate the following messages
      * 1. retry <= 0 - the message won't want to be resent
-     * 2. already duplicated or CONFIME/CONFIME_TG - p_model_msg->tid is in valid range [0x80, 0xff]
-     * 3. SET_UNACK/CONFIME/CONFIME_TG/TRANSPARENT_MSG/TRANSPARENT_ACK
-     * 4. invalid tid (< 0x80)
+     * 2. tid is in valid range (0x00, 0x7F] [0xC0, 0xff]
+     * 3. opcode is not VENDOR_OP_ATTR_INDICATE/VENDOR_OP_ATTR_INDICATE_TG/VENDOR_OP_ATTR_TRANS_INDICATE
+     * 4. already duplicated or CONFIME/CONFIME_TG
      * */
     if ((p_model_msg->retry > 1) &&
-        (p_model_msg->tid < 0x80) &&
-        (p_model_msg->opid != VENDOR_OP_ATTR_SET_UNACK) &&
-        (p_model_msg->opid != VENDOR_OP_ATTR_CONFIME) &&
-        (p_model_msg->opid != VENDOR_OP_ATTR_CONFIME_TG) &&
-        (p_model_msg->opid != VENDOR_OP_ATTR_TRANS_MSG) &&
-        (p_model_msg->opid != VENDOR_OP_ATTR_TRANS_ACK)
+        (p_model_msg->tid >= 0x7F && p_model_msg->tid < 0xC0) &&
+        ((p_model_msg->opid == VENDOR_OP_ATTR_INDICATE) ||
+        (p_model_msg->opid == VENDOR_OP_ATTR_INDICATE_TG) ||
+        (p_model_msg->opid == VENDOR_OP_ATTR_TRANS_INDICATE))
         ) {
-        resend_flag = true;
+            resend_flag = true;
+            BT_DBG("check");
+            sys_dnode_t *p_node = NULL;
+            SYS_DLIST_FOR_EACH_NODE(&g_vnd_msg_list, p_node)
+            {
+                vnd_model_msg *p_msg = NULL;
+                vnd_model_msg_n *p_msg_node = NULL;
+
+                p_msg_node = CONTAINER_OF(p_node, vnd_model_msg_n, node);
+                p_msg = &p_msg_node->msg;
+
+                if (p_msg->tid == p_model_msg->tid) {
+                    BT_DBG("no resend");
+                    resend_flag = false;
+                    break;
+                }
+
+            }
     }
+#if 0
     /**
      * only when opid is one of  VENDOR_OP_ATTR_CONFIME, VENDOR_OP_ATTR_CONFIME_TG and VENDOR_OP_ATTR_TRANS_ACK, shall we keep tid as it is
      * */
@@ -306,7 +332,7 @@ s16_t vendor_model_msg_send(vnd_model_msg *p_model_msg)
         (p_model_msg->opid != VENDOR_OP_ATTR_TRANS_ACK)) {
         p_model_msg->tid = vendor_model_msg_gen_tid();
     }
-
+#endif
     //prepare buffer
     bt_mesh_model_msg_init(p_msg, BT_MESH_MODEL_OP_3(p_model_msg->opid, CONFIG_MESH_VENDOR_COMPANY_ID));
     net_buf_simple_add_u8(p_msg, p_model_msg->tid);

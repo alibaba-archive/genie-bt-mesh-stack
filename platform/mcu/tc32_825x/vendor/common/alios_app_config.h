@@ -64,7 +64,11 @@ enum{
 #define BTN_K2      GPIO_PWM5B5  	// LED? NC now
 
 
+#ifdef CONIFG_LIGHT_HONGYAN
+#define DMA_UART_TX     UART_TX_PD3
+#else
 #define DMA_UART_TX     UART_TX_PB1
+#endif
 #define DMA_UART_RX     UART_RX_PA0
 #endif
 
