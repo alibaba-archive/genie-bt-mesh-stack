@@ -1,3 +1,10 @@
+v1.1.2
+1.optimize code size in tg7100b
+2.support dut test in tg7100b
+3.support 2 connect in tg7100b
+4.Fix random time when indicate power up state
+5.Fix vendor timer bugs
+
 v1.1.1
 1.support i2c in tg7100b
 2.Modify vendor msg resent count max, 10->60.
