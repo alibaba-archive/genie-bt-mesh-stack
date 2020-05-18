@@ -8,7 +8,7 @@
 typedef struct {
 #if defined(BOARD_TC825X)
     float    duty_cycle;  /* the pwm duty_cycle */
-#elif defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
+#else
     uint32_t    duty_cycle;  /* the pwm duty_cycle */
 #endif
     uint32_t freq;        /* the pwm freq */

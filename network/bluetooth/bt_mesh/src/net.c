@@ -1305,6 +1305,13 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 
     BT_DBG("rssi %d net_if %u", rssi, net_if);
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    if (data->len > 29) {
+        BT_ERR("Net PDU is too long %d(29)", data->len);
+        return;
+    }
+#endif
+
     if (!bt_mesh_is_provisioned()) {
         return;
     }

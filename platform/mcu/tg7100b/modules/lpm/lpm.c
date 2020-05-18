@@ -33,6 +33,40 @@ int sys_soc_resume(pm_ctx_t *pm_ctx, int pm_state);
 
 pm_ctx_t g_pm_ctx;
 
+int32_t aos_kernel_suspend(void)
+{
+    if (is_klist_empty(&g_tick_head))
+    {
+        return -1;
+    }
+
+    ktask_t * p_tcb  = krhino_list_entry(g_tick_head.next, ktask_t, tick_list);
+    return  p_tcb->tick_match > g_tick_count ?  p_tcb->tick_match - g_tick_count : 0;
+}
+
+void aos_kernel_resume(int32_t ticks)
+{
+    tick_list_update((tick_i_t)ticks);
+    core_sched();
+}
+
+#define RHINO_OS_MS_PERIOD_TICK      (1000 / RHINO_CONFIG_TICKS_PER_SECOND)
+uint64_t aos_kernel_tick2ms(uint32_t ticks)
+{
+    return ((uint64_t)ticks * RHINO_OS_MS_PERIOD_TICK);
+}
+
+uint64_t aos_kernel_ms2tick(uint32_t ms)
+{
+    if (ms < RHINO_OS_MS_PERIOD_TICK) {
+        return 0;
+    }
+
+    return (((uint64_t)ms) / RHINO_OS_MS_PERIOD_TICK);
+}
+
+
+
 //static const char *TAG = "lpm";
 static void lpm_handle(void)
 {

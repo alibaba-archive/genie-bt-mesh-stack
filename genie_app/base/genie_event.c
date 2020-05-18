@@ -83,6 +83,9 @@ static E_GENIE_EVENT _genie_event_handle_sw_reset(void)
 {
     _genie_reset_prov();
     bt_mesh_adv_stop();
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    aos_reboot();
+#endif
     bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
 
     return GENIE_EVT_SDK_MESH_PBADV_START;
@@ -97,7 +100,9 @@ static E_GENIE_EVENT _genie_event_handle_hw_reset_start(void)
 #endif
     bt_mesh_adv_stop();
     genie_reset_done();
-
+#ifdef MESH_MODEL_VENDOR_TIMER
+    vendor_timer_finalize();
+#endif
     return GENIE_EVT_HW_RESET_START;
 }
 
@@ -490,6 +495,8 @@ static E_GENIE_EVENT _genie_event_handle_vnd_msg(vnd_model_msg *p_msg)
 #ifdef MESH_MODEL_VENDOR_TIMER
 static E_GENIE_EVENT _genie_event_handle_order_msg(vendor_attr_data_t *attr_data)
 {
+    BT_DBG("type:%04x data:%04x\r\n",attr_data->type,attr_data->para);
+
     if (attr_data->type == ONOFF_T) {
         g_elem_state[0].state.onoff[T_TAR] = attr_data->para;
     }

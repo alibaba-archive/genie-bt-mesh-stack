@@ -12,6 +12,10 @@ typedef struct {
 } vendor_attr_data_t;
 #pragma pack()
 
+#define DEF_SYNC_PERIOD 180
+#define DEF_SYNC_DELAY 10
+#define DEF_SYNC_DELAY_RETRY 10
+
 typedef struct {
     volatile uint16_t year;    // 2019+
     volatile uint8_t month;    // 0-11

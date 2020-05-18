@@ -258,6 +258,18 @@ int32_t csi_iic_send_stop(iic_handle_t handle);
 */
 int32_t csi_iic_reset(iic_handle_t handle);
 
+/**
+  \brief       IIC  Sleep Prepare
+  \param[in]   iic idx
+  \return      error code
+*/
+void csi_iic_prepare_sleep_action(int32_t idx);
+/**
+  \brief       IIC  Sleep resume
+  \param[in]   iic idx
+  \return      error code
+*/
+void csi_iic_wakeup_sleep_action(int32_t idx);
 
 #ifdef __cplusplus
 }

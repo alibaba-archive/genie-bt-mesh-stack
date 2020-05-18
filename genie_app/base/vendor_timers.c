@@ -160,7 +160,7 @@ static inline UTCTimeStruct unix2UTC(uint32_t unix_time)
 
         tmp = g_noleap_daysbeforemonth[value + 1];
 
-        if (value + 1 >= 2 && is_leap_year(leapyear)) {
+        if (value + 1 >= 2 && leapyear) {
             tmp++;
         }
 
@@ -175,7 +175,7 @@ static inline UTCTimeStruct unix2UTC(uint32_t unix_time)
 
             tmp = g_noleap_daysbeforemonth[value];
 
-            if (value >= 2 && is_leap_year(leapyear)) {
+            if (value >= 2 && leapyear) {
                 tmp++;
             }
 
@@ -207,7 +207,7 @@ static inline UTCTimeStruct unix2UTC(uint32_t unix_time)
 
     tmp = g_noleap_daysbeforemonth[value];
 
-    if (value >= 2 && is_leap_year(leapyear)) {
+    if (value >= 2 && leapyear) {
         tmp++;
     }
 
@@ -371,6 +371,20 @@ static int vendor_timer_save()
     return ret;
 #else
     return -1;
+#endif
+}
+
+static int vendor_timer_erase()
+{
+#ifdef VT_STORE
+    int ret;
+    ret = genie_flash_delete_userdata();
+    if (ret) {
+        VT_DEBUG("vendor timers flash erase fail %d\n", ret);
+    }
+    return ret;
+#else
+    return 0;
 #endif
 }
 
@@ -640,6 +654,8 @@ int vendor_timer_periodic_start(uint8_t index, uint16_t periodic_time, uint8_t s
     vendor_timer->periodic_time = periodic_time;
     vendor_timer->schedule = schedule;
     vendor_timer->state = TIMER_ON;
+    vendor_timer->attr_data.para = attr_data->para;
+    vendor_timer->attr_data.type = attr_data->type;
 
     UTCTimeStruct utc = local_time;
     utc.hour = 0;
@@ -694,6 +710,7 @@ int vendor_timer_stop(int8_t index)
 int vendor_timer_remove(int8_t index)
 {
     int i;
+    int ret = 0;
 
     VT_DEBUG("timer remove %d\n", index);
 
@@ -702,11 +719,9 @@ int vendor_timer_remove(int8_t index)
         for (i = 0; i < VT_NUM; i++) {
             vendor_timer_stop(i);
         }
-
-        return 0;
+    } else {
+        ret = vendor_timer_stop(index);
     }
-
-    int ret = vendor_timer_stop(index);
 
     vendor_timer_save();
 
@@ -748,7 +763,7 @@ int vendor_timer_time_sync_set(uint16_t period_time, uint8_t retry_delay,   uint
     VT_DEBUG("timing sync set period_time %d retry_delay %d retry_times %d\n",
              period_time, retry_delay, retry_times);
 
-    if (period_time == 0 || retry_delay == 0 || retry_times) {
+    if (!period_time || !retry_delay || !retry_times) {
         return -VT_E_PARAM;
     }
 
@@ -788,6 +803,8 @@ int vendor_timer_local_time_update(uint32_t unix_time)
              local_time.hour, local_time.minutes, local_time.seconds,
              local_time.weekday);
     VT_DEBUG("unix_time revert %d\n", UTC2unix(&local_time));
+
+    vendor_timer_time_sync_set(DEF_SYNC_PERIOD, DEF_SYNC_DELAY, DEF_SYNC_DELAY_RETRY);
 
     return 0;
 }
@@ -844,4 +861,39 @@ int vendor_timer_init(vendor_timer_event_func_t cb)
     VT_DEBUG("vendor_timer_init\n");
 
     return 0;
+}
+
+int vendor_timer_finalize()
+{
+    int ret;
+    int i = 0;
+
+    if (!g_vendor_timer.init) {
+        return -1;
+    }
+
+    for (i = 0; i < VT_NUM; i++) {
+        vendor_timer_stop(i);
+    }
+
+    hal_timer_stop(&g_vendor_timer.timer);
+
+    ret = hal_timer_finalize(&g_vendor_timer.timer);
+
+    if (ret) {
+        printf("timer finalize faild\r\n");
+        return ret;
+    }
+
+    k_sem_delete(&g_vendor_timer.lock);
+    memset(&g_vendor_timer, 0, sizeof(g_vendor_timer));
+    memset(&local_time, 0, sizeof(local_time));
+
+    ret = vendor_timer_erase();
+
+    if (ret) {
+        printf("timer erase faild\r\n");
+    }
+
+    return ret;
 }

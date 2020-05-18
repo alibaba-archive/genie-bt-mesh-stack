@@ -90,6 +90,8 @@ typedef struct {
 extern int32_t target_usart_init(int32_t idx, uint32_t *base, uint32_t *irq, void **handler);
 extern int32_t target_get_addr_space(uint32_t addr);
 
+static uint32_t usart_regs_saved[CONFIG_USART_NUM][5];
+
 static dw_usart_priv_t usart_instance[CONFIG_USART_NUM];
 
 static const usart_capabilities_t usart_capabilities = {
@@ -1053,6 +1055,49 @@ int32_t csi_usart_set_interrupt(usart_handle_t handle, usart_intr_type_e type, i
 
     return 0;
 }
+
+void csi_usart_prepare_sleep_action(int32_t idx)
+{
+    dw_usart_priv_t *usart_priv = NULL;
+    usart_handle_t handle = NULL;
+    usart_priv = &usart_instance[idx];
+
+    if (!usart_priv || idx >= CONFIG_USART_NUM) {
+        return;
+    }
+
+    handle = usart_priv;
+    volatile dw_usart_reg_t *ubase = (dw_usart_reg_t *)(usart_priv->base);
+    uint8_t data[16];
+    csi_usart_receive_query(handle, data, 16);
+    WAIT_USART_IDLE_VOID(ubase);
+    ubase->LCR |= LCR_SET_DLAB;
+    registers_save(usart_regs_saved[idx], (uint32_t *)ubase, 2);
+    ubase->LCR &= ~LCR_SET_DLAB;
+    registers_save(&usart_regs_saved[idx][2], (uint32_t *)ubase + 1, 1);
+    registers_save(&usart_regs_saved[idx][3], (uint32_t *)ubase + 3, 2);
+
+}
+
+void csi_usart_wakeup_sleep_action(int32_t idx)
+{
+    dw_usart_priv_t *usart_priv = NULL;
+    usart_priv = &usart_instance[idx];
+
+    if (!usart_priv || idx >= CONFIG_USART_NUM) {
+        return;
+    }
+
+    volatile dw_usart_reg_t *ubase = (dw_usart_reg_t *)(usart_priv->base);
+    WAIT_USART_IDLE_VOID(ubase);
+    ubase->LCR |= LCR_SET_DLAB;
+    registers_restore((uint32_t *)ubase, usart_regs_saved[idx], 2);
+    ubase->LCR &= ~LCR_SET_DLAB;
+    registers_restore((uint32_t *)ubase + 1, &usart_regs_saved[idx][2], 1);
+    registers_restore((uint32_t *)ubase + 3, &usart_regs_saved[idx][3], 2);
+    ubase->FCR |= 0x41;
+}
+
 
 /**
   \brief       Get usart send data count.

@@ -36,7 +36,11 @@ sys_time_t krhino_sys_tick_get(void)
 
 sys_time_t krhino_sys_time_get(void)
 {
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    return (sys_time_t)krhino_sys_tick_get();
+#else
     return (sys_time_t)(krhino_sys_tick_get() * 1000 / RHINO_CONFIG_TICKS_PER_SECOND);
+#endif
 }
 
 tick_t krhino_ms_to_ticks(sys_time_t ms)

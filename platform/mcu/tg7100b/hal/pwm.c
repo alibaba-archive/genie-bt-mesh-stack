@@ -174,11 +174,11 @@ int32_t hal_pwm_para_chg(pwm_dev_t *pwm, pwm_config_t para)
     duty_cycle = para.duty_cycle;
 
     //printf("port %d, chan %d period_us %d, duty %d\n", pwm->port, pwm_chn, para.freq, para.duty_cycle);
-
-        ret = csi_pwm_config(pwm_handlers, pwm_chn, period_us, duty_cycle);
-        if (ret) {
-            return -1;
-        }
+    drv_pinmux_config(pwm->port,func);
+    ret = csi_pwm_config(pwm_handlers, pwm_chn, period_us, duty_cycle);
+    if (ret) {
+        return -1;
+    }
 
     return 0;
 }

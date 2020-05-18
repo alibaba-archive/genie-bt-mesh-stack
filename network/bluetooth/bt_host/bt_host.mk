@@ -26,9 +26,11 @@ $(NAME)_SOURCES := host/uuid.c \
 ifeq ($(HOST_MCU_FAMILY),ch6121)
 hci_h4 = 0
 $(NAME)_SOURCES += hci_driver/ch6121_driver.c
+GLOBAL_DEFINES += CONFIG_BT_MAX_CONN=2
 else ifeq ($(HOST_MCU_FAMILY),tg7100b)
 hci_h4 = 0
 $(NAME)_SOURCES += hci_driver/tg7100b_driver.c
+GLOBAL_DEFINES += CONFIG_BT_MAX_CONN=2
 endif
 
 ifeq ($(hci_h4),1)

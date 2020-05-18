@@ -185,7 +185,7 @@
 
 /* kernel hook conf */
 #ifndef RHINO_CONFIG_USER_HOOK
-#define RHINO_CONFIG_USER_HOOK               0
+#define RHINO_CONFIG_USER_HOOK               1
 #endif
 
 /* kernel stats conf */

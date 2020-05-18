@@ -39,14 +39,14 @@ static E_GENIE_FLASH_ERRCODE _genie_reset_write_count(uint8_t count)
 
     BT_DBG("%d", count);
 
-    return genie_flash_write_userdata(GFI_MESH_RESET_CNT, &data, 2);
+    return genie_flash_write_userdata(GFI_MESH_RESET_CNT, &data, 1);
 }
 
 static E_GENIE_FLASH_ERRCODE _genie_reset_read_count(uint8_t *p_count)
 {
     E_GENIE_FLASH_ERRCODE ret;
 
-    ret = genie_flash_read_userdata(GFI_MESH_RESET_CNT, p_count, 2);
+    ret = genie_flash_read_userdata(GFI_MESH_RESET_CNT, p_count, 1);
 
     if(ret != GENIE_FLASH_SUCCESS) {
         *p_count = 0;

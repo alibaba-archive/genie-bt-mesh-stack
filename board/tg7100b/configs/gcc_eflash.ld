@@ -22,7 +22,7 @@
  ******************************************************************************/
 MEMORY
 {
-    LR_IROM0   : ORIGIN = 0x1105D000, LENGTH = 0x1D000    /* FLASH 120KB*/
+    LR_IROM0   : ORIGIN = 0x1105B000, LENGTH = 0x1F000    /* FLASH 124KB*/
     LR_IRAM0   : ORIGIN = 0x1fff0000, LENGTH = 0x00800    /* on-chip SRAM0 2KB*/
     LR_IRAM1   : ORIGIN = 0x1fff0800, LENGTH = 0x00400    /* on-chip SRAM0 1KB*/
     LR_IRAM2   : ORIGIN = 0x1fff0c00, LENGTH = 0x00400    /* on-chip SRAM0 1KB*/
@@ -65,15 +65,18 @@ SECTIONS
   *mcu_tg7100b.a:hook_impl.o(.text.*)
   *mcu_tg7100b.a:hook_weak.o(.text.*)
   *mcu_tg7100b.a:gpio.o(.text.*)
-  *mcu_tg7100b.a:pinmux.o(.text.drv_pinmux_config)
+  *mcu_tg7100b.a:dw_gpio.o(.text.*)
+  *mcu_tg7100b.a:pinmux.o(.text.drv_pinmux_config .text.csi_pinmux_prepare_sleep_action .text.csi_pinmux_wakeup_sleep_action)
   *mcu_tg7100b.a:pwm.o(.text.hal_pwm_para_chg .text.phy_pwm*)
-  *mcu_tg7100b.a:dw_usart.o(.text.csi_usart_receive_query .text.csi_usart_send .text.csi_usart_putchar .text.dw_usart_intr_recv_data .text.dw_usart_irqhandler)
+  *mcu_tg7100b.a:dw_usart.o(.text.csi_usart_receive_query .text.csi_usart_send .text.csi_usart_putchar .text.dw_usart_intr_recv_data .text.dw_usart_irqhandler .text.csi_usart_prepare_sleep_action .text.csi_usart_wakeup_sleep_action)
   *mcu_tg7100b.a:P256-cortex-m0-ecdh-gcc.o(*)
   *mcu_tg7100b.a:ringbuffer.o(.text.*)
-  *mcu_tg7100b.a:flash.o(.text.hal_flash_erase)
+  *mcu_tg7100b.a:flash.o(.text.hal_flash_erase .text.hal_flash_get_info .text.hal_flash_read)
   *mcu_tg7100b.a:uart.o(.text.hal_uart_recv_II)
   *mcu_tg7100b.a:common.o(.text.*)
   *mcu_tg7100b.a:clock.o(.text.clk_gate_enable)
+  *mcu_tg7100b.a:ali_dfu_port.o(.text.erase_dfu_flash)
+  *crc.a:crc16.o(.text.*)
   *k_obj.o(.text.*)
   *rhino.a:k_buf_queue.o(.text.*)
   *rhino.a:k_idle.o(.text.*)
@@ -87,10 +90,10 @@ SECTIONS
   *rhino.a:k_timer.o(.text.*)
   *rhino.a:k_time.o(.text.*)
   *rhino.a:k_sys.o(.text.krhino_intrpt_exit .text.krhino_intrpt_enter)
-  *rhino.a:k_task.o(.text.krhino_cur_task_get)
-  *aos_rhino.o(.text.aos_malloc .text.aos_free)
+  *rhino.a:k_task.o(.text.krhino_cur_task_get .text.krhino_task_info_get)
+  *aos_rhino.o(.text.aos_malloc .text.aos_free .text.aos_now_ms)
   *armv6m.a:port_s.o(.text*)
-  *aos_port.o(.text.irq_lock .text.irq_unlock .text.k_sem_take .text.k_sem_give .text.k_timer_start .text.k_timer_stop)
+  *aos_port.o(.text.irq_lock .text.irq_unlock .text.k_sem_take .text.k_sem_give .text.k_timer_start .text.k_timer_stop .text.k_uptime_get_32 )
   *buf.o(.text.*)
   *atomic_c.o(.text.*)
   *poll.o(.text.*)
@@ -113,18 +116,20 @@ SECTIONS
   *hci_data.o(.text.*)
   *simple_data.o(.text.*)
   *stack_main.o(.text.*)
-  *driver_bt.o(.text.ble_stack_main .text.tg7100b_hci_send .text.tg7100b_hci_sync .text.control2host_send_message .rodata.tasksArr .rodata.tasksCnt)
+  *driver_bt.o(.text.ble_stack_main .text._hci_send .text.thead_hci_sync .text.control2host_send_message .rodata.tasksArr .rodata.tasksCnt)
   *aes_decrypt.o(.text.*)
   *bt_common.a:utils.o(.text.*)
   *bt_common.a:queue.o(.text.*)
+  *bt_common.a:event_scheduler.o(.text.scheduler_loop)
+  *bt_common.a:aes_encrypt.o(.text.tc_aes128_set_encrypt_key .text.tc_aes_encrypt)
   *hci_api.o(.text.*)
-  *libc_nano.a:(.text.memcpy .text.memset)
+  *libc_nano.a:(.text.memcpy .text.memset .text.memcmp)
   *cli.a:cli.o(.text.cli_getchar)
-  *libgcc.a:(.text.__udivmoddi4)
   *tg7100b_driver.o(.bss.rx_thread_stack)
   *tg7100b_driver.o(.text.*)
-  *genie_mesh.o(.text.calc_cur_state)
+  *genie_mesh.o(.text.calc_cur_state .text.elem_state_init)
   *genie_event.o(.text.genie_event)
+  *example_lpm.o(.text.pm_prepare_sleep_action .text.pm_after_sleep_action)
   *(.retention_mem_area0 retention_mem_area0)
  } > REGION_RETENTION1
  .text : {

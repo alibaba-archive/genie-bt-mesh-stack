@@ -258,6 +258,13 @@ static void proxy_cfg(struct bt_mesh_proxy_client *client)
     u8_t opcode;
     int err;
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    if (client->buf.len > 29) {
+        BT_ERR("Proxy cfg data is too long %d(29)", client->buf.len);
+        return;
+    }
+#endif
+
     err = bt_mesh_net_decode(&client->buf, BT_MESH_NET_IF_PROXY_CFG,
                              &rx, buf);
     if (err) {

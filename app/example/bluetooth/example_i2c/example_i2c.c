@@ -47,13 +47,13 @@ static int test_iic_eeprom(int32_t iic_idx)
         printf("hal_i2c_master_send1 error\n");
         return -1;
     }
-
+    mdelay(5);
     ret = hal_i2c_master_send(&i2c_dev, CK_IIC_SLAVE_ADDR, read_data, 2, 3000);
     if (ret < 0) {
         printf("hal_i2c_master_send2 error\n");
         return -1;
     }
-
+    mdelay(5);
     ret = hal_i2c_master_recv(&i2c_dev, CK_IIC_SLAVE_ADDR, read_data + 2, sizeof(read_data) - 2, 3000);
     if (ret < 0) {
         printf("hal_i2c_master_recv error\n");

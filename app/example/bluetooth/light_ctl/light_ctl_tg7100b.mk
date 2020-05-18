@@ -3,6 +3,8 @@ ble = 0
 bt_mesh = 0
 bt_host_tinycrypt = 0
 
+genie_vendor_timer = 1
+
 GLOBAL_DEFINES += CONFIG_BT_RX_BUF_LEN=252
 GLOBAL_DEFINES += CONFIG_BT_L2CAP_TX_MTU=244
 tg7100b_debug_mode = 1

@@ -50,10 +50,15 @@
 
 #define EL_TIMING_TIMEOUT_T 0x11 /* timer timeout event */
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+#define VENDOR_MODEL_MSG_DFT_RETRY_TIMES 45
+#define VENDOR_MODEL_MSG_MAX_RETRY_TIMES 45
+#define VENDOR_MODEL_MSG_RETRY_PERIOD 400
+#else
 #define VENDOR_MODEL_MSG_DFT_RETRY_TIMES 60
 #define VENDOR_MODEL_MSG_MAX_RETRY_TIMES 60
 #define VENDOR_MODEL_MSG_RETRY_PERIOD 400
-
+#endif
 /**
  * p_elem: pointer to the element which the messsage want to be sent to
  * retry: retry counts before desired confirm message received

@@ -61,6 +61,7 @@ extern int32_t target_get_addr_space(uint32_t addr);
 
 static dw_iic_priv_t iic_instance[CONFIG_IIC_NUM];
 
+static uint32_t iic_regs_saved[CONFIG_IIC_NUM][25];
 static const iic_capabilities_t iic_capabilities = {
     .address_10_bit = 0  /* supports 10-bit addressing */
 };
@@ -385,6 +386,59 @@ static void do_wakeup_sleep_action(iic_handle_t handle)
     registers_restore(ibase + 32, &iic_priv->iic_regs_saved[13], 12);
 }
 #endif
+
+
+
+void csi_iic_prepare_sleep_action(int32_t idx)
+{
+    dw_iic_priv_t *iic_priv = NULL;
+    iic_priv = &iic_instance[idx];
+    uint8_t i = 0 ;
+
+    if (!iic_priv || idx >= CONFIG_IIC_NUM) {
+        return;
+    }
+
+    uint32_t *ibase = (uint32_t *)(iic_priv->base);
+
+    registers_save(iic_regs_saved[idx], ibase, 11);
+    registers_save(&iic_regs_saved[idx][11], ibase + 12, 1);
+    registers_save(&iic_regs_saved[idx][12], ibase + 14, 2);
+    registers_save(&iic_regs_saved[idx][14], ibase + 27, 1);
+    registers_save(&iic_regs_saved[idx][15], ibase + 32, 10);
+
+}
+
+
+void csi_iic_wakeup_sleep_action(int32_t idx)
+{
+    dw_iic_priv_t *iic_priv = NULL;
+    iic_priv = &iic_instance[idx];
+
+    if (!iic_priv || idx >= CONFIG_IIC_NUM) {
+        return;
+    }
+
+    uint8_t i = 0 ;
+
+    int ret = 0;
+
+    if (0 == idx) {
+        clk_gate_enable(MOD_I2C0);
+    } else if (1 == idx) {
+        clk_gate_enable(MOD_I2C1);
+    } else {
+        return;
+    }
+
+    uint32_t *ibase = (uint32_t *)(iic_priv->base);
+    registers_restore(ibase,      iic_regs_saved[idx], 11);
+    registers_restore(ibase + 12, &iic_regs_saved[idx][11], 1);
+    registers_restore(ibase + 14, &iic_regs_saved[idx][12], 2);
+    registers_restore(ibase + 27, &iic_regs_saved[idx][14], 1);
+    registers_restore(ibase + 32, &iic_regs_saved[idx][15], 10);
+
+}
 
 /**
   \brief       Initialize IIC Interface specified by pins. \n

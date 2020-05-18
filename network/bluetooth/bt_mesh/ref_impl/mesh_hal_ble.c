@@ -299,7 +299,11 @@ void adv_scan_timer(void *timer, void *arg)
         }
 
         /* Here, we define the adv window of each package in adv duration (120ms or xmit related time)*/
-        next_time = ADV_INTERVAL_TIMER - adv_time; //adv_scan_schd.param.adv_param.interval_min * 5 / 8 - adv_time;
+        if (adv_scan_schd.param.adv_param.options & BT_LE_ADV_OPT_CONNECTABLE) {
+            next_time = adv_scan_schd.param.adv_param.interval_min * 5 / 8 - adv_time;
+        } else {
+            next_time = ADV_INTERVAL_TIMER - adv_time; //adv_scan_schd.param.adv_param.interval_min * 5 / 8 - adv_time;
+        }
 
         if (next_time > 1) {
             ret = bt_le_scan_start(&adv_scan_schd.param.scan_param, adv_scan_schd.param.scan_cb);

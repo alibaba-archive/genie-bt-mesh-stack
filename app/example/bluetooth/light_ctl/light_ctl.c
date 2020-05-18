@@ -367,12 +367,16 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
             BT_DBG("GENIE_EVT_HW_RESET_DONE\n");
             break;
         case GENIE_EVT_SDK_MESH_INIT:
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+            _user_init();
+#else
             _led_init();
             _init_light_para();
             _user_init();
             if (!genie_reset_get_flag()) {
                 next_event = GENIE_EVT_SDK_ANALYZE_MSG;
             }
+#endif
             break;
         case GENIE_EVT_SDK_MESH_PROV_SUCCESS:
             _led_flash(3, 0);
@@ -401,6 +405,11 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
 
 int application_start(int argc, char **argv)
 {
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    led_startup();
+#endif
+
+    /* genie initilize */
     genie_init();
 
     BT_INFO("BUILD_TIME:%s", __DATE__","__TIME__);

@@ -237,8 +237,8 @@ const uint32_t *const jump_table_base[256] __attribute__((section("jump_table_me
     0,
     0,
     0, 0, 0, 0,                       // - 109, reserved by phyplus
-    (const uint32_t *)llMasterEvt_TaskEndOk1, (const uint32_t *)llSetupNextMasterEvent1, (const uint32_t *)llProcessMasterControlProcedures1, (const uint32_t *)llProcessMasterControlPacket1, 0,(const uint32_t *)LL_master_conn_event1, //,<-115
-    (const uint32_t *)LL_SetScanControl1, 0, (const uint32_t *)LL_CreateConn1, 0, // 116 -119, reserved by phyplus
+    (const uint32_t *)0, (const uint32_t *)0, (const uint32_t *)0, (const uint32_t *)0, 0,(const uint32_t *)0, //,<-115
+    (const uint32_t *)LL_SetScanControl1, 0, (const uint32_t *)0, 0, // 116 -119, reserved by phyplus
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 120 -129, reserved by phyplus
     0, (const uint32_t *)llPduLengthUpdate1, 0, 0, 0, 0, 0, 0, 0, 0,    // 130 -139, reserved by phyplus
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 140 -149, reserved by phyplus

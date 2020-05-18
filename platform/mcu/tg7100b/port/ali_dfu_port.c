@@ -129,6 +129,8 @@ int erase_dfu_flash(void)
     hal_logic_partition_t *partition_info;
     uint32_t offset = (SPIF_SECTOR_SIZE << 1);
     uint32_t length = 0;
+    uint8_t cmp_buf[32] = {0xFF};
+    uint8_t wr_buf[32] = {0};
 
     ///get OTA temporary partition information
     partition_info = hal_flash_get_info(HAL_PARTITION_OTA_TEMP);
@@ -139,7 +141,15 @@ int erase_dfu_flash(void)
     }
     length = partition_info->partition_length - offset;
 
-    //LOG("Erase %x,%x!!\r\n", offset, length);
+    memset(cmp_buf, 0xFF, sizeof(cmp_buf));
+    ret = hal_flash_read(HAL_PARTITION_OTA_TEMP, &offset, (void *)wr_buf, sizeof(wr_buf));
+    if (ret < 0) {
+        LOG("read flash error!!\r\n");
+        return -1;
+    }
+    if (memcmp(wr_buf, cmp_buf, sizeof(wr_buf)) == 0) {
+        return 0;
+    }
 
     /* For bootloader upgrade, we will reserve two sectors, then save the image */
     ret = hal_flash_erase(HAL_PARTITION_OTA_TEMP, offset, length);

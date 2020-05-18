@@ -22,7 +22,8 @@ GLOBAL_INCLUDES += csi/csi_core/cmsis/include  \
 
 GLOBAL_LDFLAGS += -T board/tg7100b/configs/gcc_eflash.ld
 GLOBAL_INCLUDES += csi/csi_driver/phyplus/tg7100b/include \
-                   csi/csi_driver/phyplus/common/include
+                   csi/csi_driver/phyplus/common/include \
+                   modules/ble_dut
 
 $(NAME)_SOURCES += csi/csi_driver/phyplus/common/adc.c           \
                    csi/csi_driver/phyplus/common/ck_irq.c        \
@@ -56,9 +57,15 @@ $(NAME)_SOURCES += csi/csi_driver/phyplus/common/adc.c           \
                    csi/csi_driver/phyplus/tg7100b/systick.c    \
                    csi/csi_driver/phyplus/tg7100b/sys_freq.c
 
-$(NAME)_SOURCES += aos/aos.c
+$(NAME)_SOURCES += aos/aos.c \
+                   aos/hook_impl.c
 $(NAME)_SOURCES += hal/pm.c \
                    modules/lpm/lpm.c \
+                   modules/ble_dut/dut_uart_driver.c \
+                   modules/ble_dut/ble_dut_test.c \
+                   modules/ble_dut/dut_at_cmd.c \
+                   modules/ble_dut/dut_rf_test.c \
+                   modules/ble_dut/dut_utility.c \
                    hal/ringbuffer.c \
                    hal/uart.c \
                    hal/spi.c  \
@@ -74,6 +81,7 @@ $(NAME)_SOURCES += hal/pm.c \
 
 $(NAME)_SOURCES += ecdh/P256-cortex-m0-ecdh-gcc.S
 
+#include ./platform/mcu/tg7100b/hal/drivers/bt/build.mk
 $(NAME)_PREBUILT_LIBRARY := ./hal/drivers/libbt/driver_bt.a
 include ./board/tg7100b/rom1Sym.mk
 

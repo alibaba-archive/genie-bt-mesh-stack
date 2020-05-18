@@ -81,8 +81,7 @@ static void _mesh_trans_timer_cycle(void *p_timer, void *p_arg)
 
     if(p_state->trans == 0) {
         genie_event(GENIE_EVT_SDK_TRANS_END, p_arg);
-    }
-    else {
+    } else {
         k_timer_start(&p_state->trans_timer, MESH_TRNSATION_CYCLE);
     }
 }
@@ -271,22 +270,26 @@ static void _genie_indicate_cb(void *p_timer, void *args)
 void genie_indicate_start(uint16_t delay_ms, elem_state_t *p_elem)
 {
     static uint8_t inited = 0;
+    uint8_t rand;
     uint16_t random_time;
 
     if(!inited) {
         k_timer_init(&g_indc_timer, _genie_indicate_cb, NULL);
         inited = 1;
     }
-    bt_rand(&random_time, 1);
+
+    bt_rand(&rand, 1);
+
     if(delay_ms == 0) {
 #ifdef CONFIG_MESH_MODEL_TRANS
-    random_time = 2000 + 8000*random_time/255;
+        random_time = 2000 + 8000 * rand / 255;
 #else
-    random_time = 500 + 9500*random_time/255;
+        random_time = 500 + 9500 * rand / 255;
 #endif
     } else {
         random_time = delay_ms;
     }
+
     BT_DBG("indicate delay(%d)ms", random_time);
     g_indc_timer.args = p_elem;
     k_timer_start(&g_indc_timer, random_time);
@@ -1057,30 +1060,27 @@ static uint8_t _get_transition_byte(u32_t time)
 
     time /= 100;
 
-    if(time > TRANS_TIMES[3] * 62) {
+    if (time > TRANS_TIMES[3] * 62) {
         return 0;
+    } else if (time > TRANS_TIMES[2] * 62) {
+        return (time / TRANS_TIMES[3]) | 0xC0;
+    } else if (time > TRANS_TIMES[1] * 62) {
+        return (time / TRANS_TIMES[2]) | 0x80;
+    } else if (time > TRANS_TIMES[0] * 62) {
+        return (time / TRANS_TIMES[1]) | 0x40;
+    } else {
+        return (time / TRANS_TIMES[0]);
     }
-    else if(time > TRANS_TIMES[2] * 62) {
-        return (time/TRANS_TIMES[3]) | 0xC0;
-    }
-    else if(time > TRANS_TIMES[1] * 62) {
-        return (time/TRANS_TIMES[2]) | 0x80;
-    }
-    else if(time > TRANS_TIMES[0] * 62) {
-        return (time/TRANS_TIMES[1]) | 0x40;
-    }
-    else
-        return (time/TRANS_TIMES[0]);
 }
 
 //unit is 1ms
 u32_t get_transition_time(uint8_t byte)
 {
-    if((byte & 0x3F) == 0x3F)
-    {
+    if ((byte & 0x3F) == 0x3F) {
         MODEL_E("%s ERROR, invalid 0x%02X!!!\n", __func__, byte);
         return 0xFFFFFFFF;
     }
+
     return (byte & 0x3F) * TRANS_TIMES[byte>>6] * 100;
 }
 
@@ -1092,13 +1092,12 @@ uint8_t get_remain_byte(model_state_t *p_state, bool is_ack)
     if (!is_ack && p_state->trans_start_time < cur_time) {
         cur_time -= p_state->trans_start_time;
         u32_t l_trans = get_transition_time(p_state->trans);
-        if(l_trans == 0xFFFFFFFF) {
+
+        if (l_trans == 0xFFFFFFFF) {
             remain_byte = 0x3F;
-        }
-        else if(l_trans > cur_time) {
+        } else if (l_trans > cur_time) {
             remain_byte = _get_transition_byte(l_trans - cur_time);
-        }
-        else {
+        } else {
             remain_byte = 0;
         }
 
@@ -1146,10 +1145,9 @@ E_MESH_ERROR_TYPE mesh_check_tid(u16_t src_addr, uint8_t tid)
         }
         i++;
     }
-    if(i < cur_index + RECV_MSG_TID_QUEUE_SIZE) {
+    if (i < cur_index + RECV_MSG_TID_QUEUE_SIZE) {
         return MESH_TID_REPEAT;
-    }
-    else {
+    } else {
         tid_queue[cur_index].tid = tid;
         tid_queue[cur_index].addr = src_addr;
         tid_queue[cur_index].time = cur_time;
@@ -1157,21 +1155,6 @@ E_MESH_ERROR_TYPE mesh_check_tid(u16_t src_addr, uint8_t tid)
         cur_index %= RECV_MSG_TID_QUEUE_SIZE;
         return MESH_SUCCESS;
     }
-}
-
-#if 1   //init
-static void _prov_complete(u16_t net_idx, u16_t addr)
-{
-    BT_DBG("Provisioning completed");
-    //BT_DBG("Net ID: %u", net_idx);
-    //BT_DBG("ua %04x", addr);
-}
-
-
-static void _prov_reset(void)
-{
-    BT_INFO("reset prov");
-    //user_prov_reset();
 }
 
 #ifdef MESH_MODEL_VENDOR_TIMER
@@ -1189,6 +1172,29 @@ int _vendor_timer_event(uint8_t event, uint8_t index, vendor_attr_data_t *data)
     return 0;
 }
 #endif
+
+#if 1   //init
+static void _prov_complete(u16_t net_idx, u16_t addr)
+{
+    BT_DBG("Provisioning completed");
+#ifdef MESH_MODEL_VENDOR_TIMER
+    vendor_timer_init(_vendor_timer_event);
+#endif
+
+    //BT_DBG("Net ID: %u", net_idx);
+    //BT_DBG("ua %04x", addr);
+}
+
+
+static void _prov_reset(void)
+{
+    BT_INFO("reset prov");
+    //user_prov_reset();
+#ifdef MESH_MODEL_VENDOR_TIMER
+    vendor_timer_finalize();
+#endif
+
+}
 
 static void _genie_mesh_ready(int err)
 {

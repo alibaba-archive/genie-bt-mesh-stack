@@ -93,7 +93,7 @@ const hal_logic_partition_t hal_partitions[] =
 	 .partition_owner			 = HAL_FLASH_EMBEDDED,
 	 .partition_description 	 = "misc",
 	 .partition_start_addr		 = 0x11024000,
-	 .partition_length			 = 0x39000,
+	 .partition_length			 = 0x37000,
 	 .partition_options 		 = PAR_OPT_READ_EN | PAR_OPT_WRITE_EN,
 	},
 };

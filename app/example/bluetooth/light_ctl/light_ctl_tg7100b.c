@@ -4,6 +4,7 @@
 
 #include <hal/soc/pwm.h>
 #include "pin_name.h"
+#include <gpio.h>
 
 #define  WARM_PIN   24  //warm led
 #define  COLD_PIN   20  //cold led
@@ -12,6 +13,8 @@
 
 static pwm_dev_t light_led_c;
 static pwm_dev_t light_led_w;
+gpio_dev_t gpio_c;
+gpio_dev_t gpio_w;
 
 uint16_t duty_list[] = {
     #include "duty_list_fsl.h"
@@ -23,13 +26,21 @@ uint16_t duty_list[] = {
  */
 static void _led_init(void)
 {
-    light_led_c.port = COLD_PIN;
+    gpio_c.port = COLD_PIN;
+    gpio_c.config = OUTPUT_PUSH_PULL;
+    hal_gpio_init(&gpio_c);
+
+    light_led_c.port = gpio_c.port;
     light_led_c.config.duty_cycle = 0;
     light_led_c.config.freq = LIGHT_PERIOD;
     hal_pwm_init(&light_led_c);
     hal_pwm_start(&light_led_c);
 
-    light_led_w.port = WARM_PIN;
+    gpio_w.port = WARM_PIN;
+    gpio_c.config = OUTPUT_PUSH_PULL;
+    hal_gpio_init(&gpio_w);
+
+    light_led_w.port = gpio_w.port;
     light_led_w.config.duty_cycle = 0;
     light_led_w.config.freq = LIGHT_PERIOD;
     hal_pwm_init(&light_led_w);
@@ -97,6 +108,26 @@ static int _set_pwm_duty(uint8_t channel, uint8_t duty)
         return -1;
         }
 
+    /* if duty is 0 or 100, pinmux pwm to gpio */
+    if(pwm_cfg.duty_cycle == 0){
+        if(pwm_dev->port == COLD_PIN){
+            hal_gpio_output_low(&gpio_c);
+            drv_pinmux_config(pwm_dev->port, PIN_FUNC_GPIO);
+        }else{
+            hal_gpio_output_low(&gpio_w);
+            drv_pinmux_config(pwm_dev->port, PIN_FUNC_GPIO);
+        }
+    }
+
+    if(pwm_cfg.duty_cycle == pwm_cfg.freq){
+        if(pwm_dev->port == COLD_PIN){
+            hal_gpio_output_high(&gpio_c);
+            drv_pinmux_config(pwm_dev->port, PIN_FUNC_GPIO);
+        }else{
+            hal_gpio_output_high(&gpio_w);
+            drv_pinmux_config(pwm_dev->port, PIN_FUNC_GPIO);
+        }
+    }
     return 0;
 }
 
@@ -123,3 +154,10 @@ static void _led_set(uint8_t onoff, uint16_t actual, uint16_t temperature)
     }
 }
 
+int led_startup(void)
+{
+    genie_flash_init();
+    _led_init();
+    _init_light_para();
+    _led_flash(1, 0);
+}

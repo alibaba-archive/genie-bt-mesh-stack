@@ -60,7 +60,7 @@ GLOBAL_DEFINES += CONIFG_OLD_FLASH_PARA
 #GLOBAL_DEFINES += GENIE_ULTRA_PROV
 
 genie_ota = 1
-genie_vendor_timer = 1
+#genie_vendor_timer = 1
 
 ifeq ($(HOST_MCU_FAMILY),ch6121)
 include $(GENIE_MAKE_PATH)/$(HOST_MCU_FAMILY).mk

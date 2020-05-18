@@ -61,6 +61,7 @@ typedef struct {
 extern int32_t target_gpio_port_init(port_name_e port, uint32_t *base, uint32_t *irq, void **handler, uint32_t *pin_num);
 extern int32_t target_gpio_pin_init(int32_t gpio_pin, uint32_t *port_idx);
 
+static uint32_t gpio_regs_saved[16];
 static dw_gpio_priv_t gpio_handle[CONFIG_GPIO_NUM];
 static dw_gpio_pin_priv_t gpio_pin_handle[CONFIG_GPIO_PIN_NUM];
 
@@ -372,6 +373,18 @@ static void do_wakeup_sleep_action(void *handle)
 }
 #endif
 
+void csi_gpio_prepare_sleep_action()
+{
+    uint32_t addr = 0x40008000;
+    registers_save(gpio_regs_saved, (uint32_t *)addr, 16);
+}
+
+void csi_gpio_wakeup_sleep_action()
+{
+    uint32_t addr = 0x40008000;
+    registers_save((uint32_t *)addr, gpio_regs_saved, 16);
+}
+
 /**
   \brief       Initialize GPIO handle.
   \param[in]   gpio_pin    Pointer to the int32_t.
@@ -531,7 +544,12 @@ int32_t csi_gpio_pin_config(gpio_pin_handle_t handle,
     gpio_priv->dir = dir;
     gpio_priv->mask = 1 << gpio_pin_priv->idx;
 
-    uint32_t ret = dw_gpio_set_direction(gpio_priv, dir);
+    uint8_t offset = gpio_pin_priv->offset;
+    int32_t ret = drv_pin_config_mode(gpio_pin_priv->portidx, offset, mode);
+    if (ret) {
+        return ret;
+    }
+    ret = dw_gpio_set_direction(gpio_priv, dir);
 
     if (ret) {
         return ret;

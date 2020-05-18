@@ -21,6 +21,7 @@
 
 #include "hci_api.h"
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
 int bt_rand(void *buf, size_t len)
 {
     uint8_t tmp[8];
@@ -73,16 +74,14 @@ int bt_encrypt_le(const u8_t key[16], const u8_t plaintext[16],
 int bt_encrypt_be(const u8_t key[16], const u8_t plaintext[16],
                   u8_t enc_data[16])
 {
-    int err;
-    u8_t tmp_key[16];
-    u8_t tmp_plaintext[16];
-    memcpy(tmp_key, key, 16);
-    memcpy(tmp_plaintext, plaintext, 16);
-    err = hci_api_le_enc((uint8_t *)tmp_key, (uint8_t *)tmp_plaintext, (uint8_t *)enc_data);
+    struct tc_aes_key_sched_struct s;
 
-    if (err) {
-        BT_ERR("enc le fail %d", err);
-        return err;
+    if (tc_aes128_set_encrypt_key(&s, key) == TC_CRYPTO_FAIL) {
+        return -EINVAL;
+    }
+
+    if (tc_aes_encrypt(enc_data, plaintext, &s) == TC_CRYPTO_FAIL) {
+        return -EINVAL;
     }
 
     return 0;
@@ -325,3 +324,4 @@ int bt_cmac_finish(struct bt_cmac_t *ctx, uint8_t out[16])
 
     return 0;
 }
+#endif

@@ -109,7 +109,7 @@ static vnd_model_msg_n* _vendor_model_msg_node_generate(vnd_model_msg *p_model_m
     }
 
     memcpy(&p_node->msg, p_model_msg, sizeof(vnd_model_msg));
-    BT_DBG("p_node->msg:%p, data:%p, %p", &p_node->msg, &p_node->msg.data, &p_node->msg.data + 1)
+    BT_DBG("p_node->msg:%p, data:%p, %p", &p_node->msg, &p_node->msg.data, &p_node->msg.data + 1);
     p_node->msg.data = (u8_t*)(&p_node->msg.data + 1);
     memcpy(p_node->msg.data, p_model_msg->data, p_model_msg->len);
     BT_DBG("p_model_msg->data:%p, %s", p_model_msg->data, bt_hex(p_model_msg->data, p_model_msg->len));
@@ -489,9 +489,25 @@ static void _vendor_model_confirm_tg(struct bt_mesh_model *model,
                                   struct net_buf_simple *buf)
 {
     u8_t tid = 0x0;
+    vnd_model_msg msg;
 
     tid = net_buf_simple_pull_u8(buf);
     _vendor_model_msg_check_tid(&g_vnd_msg_list, tid);
+
+    memset(&msg, 0, sizeof(vnd_model_msg));
+    msg.opid = VENDOR_OP_ATTR_CONFIME_TG;
+    msg.tid = tid;
+    msg.len = buf->len;
+
+    if (msg.len) {
+        msg.data = (u8_t *)buf->data;
+        net_buf_simple_pull(buf, msg.len);
+        BT_DBG("payload:%s", bt_hex(msg.data, msg.len));
+    } else {
+        msg.data = NULL;
+    }
+
+    genie_event(GENIE_EVT_SDK_VENDOR_MSG, (void *)&msg);
 }
 
 /** @def _vendor_model_transparent

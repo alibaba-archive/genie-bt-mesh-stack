@@ -144,6 +144,18 @@ int32_t csi_gpio_pin_read(gpio_pin_handle_t handle, bool *value);
 */
 int32_t csi_gpio_pin_set_irq(gpio_pin_handle_t handle, gpio_irq_mode_e mode, bool enable);
 
+    /**
+      \brief       gpio prepare before sleep
+      \param[in]   void
+      \return      void
+    */
+void csi_gpio_prepare_sleep_action();
+    /**
+      \brief       gpio resume after sleep
+      \param[in]   void
+      \return      void
+    */
+void csi_gpio_wakeup_sleep_action();
 
 #ifdef __cplusplus
 }

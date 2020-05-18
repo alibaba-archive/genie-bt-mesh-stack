@@ -21,6 +21,6 @@ partitions:
   - { name: boot,   address: 0x11009000, size: 0x008000, load_addr: 0x2000A800}
   - { name: jumptb, address: 0x11011000, size: 0x001000, load_addr: 0x1FFF0800, update: FULL, verify: true }
   - { name: prim,   address: 0x11012000, size: 0x012000, load_addr: 0x1fff4800, update: FULL, verify: true }
-  - { name: xprim,  address: 0x1105D000, size: 0x1D000, update: FULL, verify: true }
-  - { name: misc,   address: 0x11024000, size: 0x39000 }
+  - { name: xprim,  address: 0x1105B000, size: 0x1F000, update: FULL, verify: true }
+  - { name: misc,   address: 0x11024000, size: 0x37000 }
   - { name: kv,     address: 0x1107A000, size: 0x6000 }

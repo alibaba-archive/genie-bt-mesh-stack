@@ -402,6 +402,22 @@ int32_t csi_usart_power_control(usart_handle_t handle, csi_power_stat_e state);
   \param[in]   flowctrl_type   flow control type.\ref usart_flowctrl_type_e.
   \return      error code
 */
+
+/**
+  \brief       csi usart prepare before sleep
+  \param[in]   idx  usart index.
+  \return      void
+*/
+void csi_usart_prepare_sleep_action(int32_t idx);
+
+/**
+  \brief       csi usart resume after sleep
+  \param[in]   idx  usart index.
+  \return      void
+*/
+void csi_usart_wakeup_sleep_action(int32_t idx);
+
+
 int32_t csi_usart_config_flowctrl(usart_handle_t handle,
                                   usart_flowctrl_type_e flowctrl_type);
 

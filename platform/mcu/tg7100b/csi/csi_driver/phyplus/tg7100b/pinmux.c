@@ -33,6 +33,9 @@
 
 #define writel(b,addr) (void)((*(volatile unsigned int *) (addr)) = (b))
 
+
+static uint32_t pinmux_regs_saved[21];
+
 /**
   \brief       initial hobbit pinmux.
   \return      none
@@ -136,5 +139,17 @@ void drv_pinmux_dwuart_restore(pin_name_e tx_pin, pin_name_e rx_pin)
 
 void drv_pinmux_reset(void)
 {
+}
+
+void csi_pinmux_prepare_sleep_action()
+{
+    uint32_t addr = 0x40003800;
+    registers_save(pinmux_regs_saved, (uint32_t *)addr, 21);
+}
+
+void csi_pinmux_wakeup_sleep_action(void)
+{
+    uint32_t addr = 0x40003800;
+    registers_save((uint32_t *)addr, pinmux_regs_saved, 21);
 }
 

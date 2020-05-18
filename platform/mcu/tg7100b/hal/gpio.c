@@ -5,7 +5,7 @@
 #include "soc.h"
 #include "hal/soc/gpio.h"
 #include "drv_gpio.h"
-
+#include "pin_name.h"
 
 
 typedef struct {
@@ -15,15 +15,11 @@ typedef struct {
     gpio_event_cb_t cb;
 } dw_gpio_pin_priv_t;
 
-#define PIN_FUNC_GPIO 99
-
-
-
-
 static gpio_pin_handle_t gpio_handlers[CONFIG_GPIO_PIN_NUM] = {NULL};
 
 int32_t hal_gpio_init(gpio_dev_t *gpio)
 {
+    int ret = 0;
     gpio_pin_handle_t gpio_handle = NULL;
 
     switch (gpio->config) {
@@ -47,31 +43,34 @@ int32_t hal_gpio_init(gpio_dev_t *gpio)
 
     switch (gpio->config) {
         case INPUT_PULL_UP:
-            csi_gpio_pin_config(gpio_handle, GPIO_MODE_PULLUP, GPIO_DIRECTION_INPUT);
+            ret = csi_gpio_pin_config(gpio_handle, GPIO_MODE_PULLUP, GPIO_DIRECTION_INPUT);
             break;
 
         case INPUT_PULL_DOWN:
-            csi_gpio_pin_config(gpio_handle, GPIO_MODE_PULLDOWN, GPIO_DIRECTION_INPUT);
+            ret = csi_gpio_pin_config(gpio_handle, GPIO_MODE_PULLDOWN, GPIO_DIRECTION_INPUT);
             break;
 
         case INPUT_HIGH_IMPEDANCE:
-            csi_gpio_pin_config(gpio_handle, GPIO_MODE_PULLNONE, GPIO_DIRECTION_INPUT);
+            ret = csi_gpio_pin_config(gpio_handle, GPIO_MODE_PULLNONE, GPIO_DIRECTION_INPUT);
             break;
 
         case OUTPUT_PUSH_PULL:
-            csi_gpio_pin_config(gpio_handle, GPIO_MODE_PUSH_PULL, GPIO_DIRECTION_OUTPUT);
+            ret = csi_gpio_pin_config(gpio_handle, GPIO_MODE_PULLNONE, GPIO_DIRECTION_OUTPUT);
+            break;
+
+        case ANALOG_MODE:
+        case PWM_CHANNEL_1:
+        case PWM_CHANNEL_2:
+        case IRQ_MODE:
             break;
 
         case OUTPUT_OPEN_DRAIN_PULL_UP:
         case OUTPUT_OPEN_DRAIN_NO_PULL:
-            csi_gpio_pin_config(gpio_handle, GPIO_MODE_OPEN_DRAIN, GPIO_DIRECTION_OUTPUT);
-            break;
-
         default:
-            break;
+            return -1; 
     }
 
-    return 0;
+    return ret;
 }
 
 

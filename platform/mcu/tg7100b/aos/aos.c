@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 extern void board_base_init(void);
-#define INIT_TASK_STACK_SIZE 4096
+#define INIT_TASK_STACK_SIZE 2048
 static cpu_stack_t app_stack[INIT_TASK_STACK_SIZE / 4] __attribute((section(".data")));
 
 ktask_t *g_aos_init;
