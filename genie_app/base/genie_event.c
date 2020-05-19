@@ -73,6 +73,9 @@ static void _genie_reset_prov(void)
     g_genie_provisioned = 0;
     /* reset prov */
     bt_mesh_reset();
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    bt_mesh_prov_reset_link();
+#endif
     genie_flash_reset_system();
 #ifdef GENIE_ULTRA_PROV
     ultra_prov_free();

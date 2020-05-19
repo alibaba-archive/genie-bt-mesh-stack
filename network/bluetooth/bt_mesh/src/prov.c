@@ -268,6 +268,14 @@ static void reset_link(void)
     }
 }
 
+void bt_mesh_prov_reset_link(void)
+{
+    if (atomic_test_bit(link.flags, LINK_ACTIVE))
+    {
+        reset_link();
+    }
+}
+
 static struct net_buf *adv_buf_create(void)
 {
     struct net_buf *buf;
