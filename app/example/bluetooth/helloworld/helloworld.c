@@ -234,8 +234,6 @@ void user_event(E_GENIE_EVENT event, void *p_arg)
         case GENIE_EVT_HW_RESET_DONE:
             printk("GENIE_EVT_HW_RESET_DONE\n");
             break;
-        case GENIE_EVT_APP_FAC_QUIT:
-            break;
         default:
             break;
     }
