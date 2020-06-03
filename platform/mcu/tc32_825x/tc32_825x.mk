@@ -142,6 +142,7 @@ $(NAME)_SOURCES  += hal/flash.c
 $(NAME)_SOURCES  += hal/gpio.c
 $(NAME)_SOURCES  += hal/pwm.c
 $(NAME)_SOURCES  += hal/uart.c
+$(NAME)_SOURCES  += hal/timer.c
 
 $(NAME)_SOURCES  += port/ali_dfu_port.c
 

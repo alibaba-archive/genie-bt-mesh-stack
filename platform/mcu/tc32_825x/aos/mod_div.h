@@ -78,3 +78,17 @@ typedef union {
 //#else
 //#error COUNT_LEADING_ZEROS() and COUNT_TRAILING_ZEROS() macros not ported to your compiler
 //#endif
+
+typedef int word_type __attribute__ ((mode (__word__)));
+
+struct DWstruct {
+	int low, high;
+};
+
+typedef union {
+	struct DWstruct s;
+	long long ll;
+} DWunion;
+
+
+

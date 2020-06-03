@@ -65,6 +65,7 @@
 #include <aos/kernel.h>
 #include <aos/init.h>
 #include <hal/soc/uart.h>
+#include <hal/soc/timer.h>
 
 void blc_hci_send_data_aos(u8 hci_evt_cmd, u8 *para, u8 n, int prio_flag);
 void uart_rx_proc(void);
@@ -295,12 +296,15 @@ _attribute_ram_code_ void timer0_irq(void)
 	}
 }
 
+extern void timer1_irq();
+
 _attribute_ram_code_ void irq_handler(void)
 {
     static u32 irq_cnt_1handle; irq_cnt_1handle++;
     irq_blt_sdk_handler();
     
 	timer0_irq();
+	timer1_irq();
 #if((PRINT_ENABLE==1) && (IS_PRINT_USE_SIM==0))
 	uart_rx_proc();
 #endif
