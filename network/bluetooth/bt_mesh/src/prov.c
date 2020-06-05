@@ -39,7 +39,7 @@
 #include "proxy.h"
 #include "prov.h"
 
-//#include "bt_mesh_custom_log.h"
+#include "bt_mesh_custom_log.h"
 
 /* 4 transmissions, 20ms interval */
 #define PROV_XMIT_COUNT        0

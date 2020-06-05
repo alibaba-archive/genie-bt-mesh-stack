@@ -212,7 +212,7 @@ void init_config(void)
         pGlobal_config[SCAN_RSP_DELAY] = 16;//23;        //  2019/3/19 A2: 23 --> 16
     } else if (g_system_clk == SYS_CLK_DLL_48M) {
         // scan req -> scan rsp timing
-        pGlobal_config[SCAN_RSP_DELAY] = 9;        // 12    //  2019/3/19 A2: 12 --> 9
+        pGlobal_config[SCAN_RSP_DELAY] = 11;
     } else if (g_system_clk == SYS_CLK_DLL_64M) {   //  2019/3/26 add
         pGlobal_config[SCAN_RSP_DELAY] = 8;
     }

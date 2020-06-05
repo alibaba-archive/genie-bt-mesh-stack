@@ -260,11 +260,37 @@ static void _genie_indicate_cb(void *p_timer, void *args)
     elem_state_t *p_elem = p_cb_timer->args;
     BT_DBG("p_cb_timer %p", p_cb_timer);
     //genie_prov_timer_stop();
-    if(g_indication_flag & INDICATION_FLAG_POWERON) {
+#ifdef STATUS_INDICATION_IN_ONE_PACKET
+    if (g_indication_flag & INDICATION_FLAG_POWERON) {
         genie_event(GENIE_EVT_SDK_MESH_PWRON_INDC, p_elem);
     } else {
         genie_event(GENIE_EVT_SDK_INDICATE, p_elem);
     }
+#else
+    uint8_t cur_indication_flag = g_indication_flag;
+
+    if (cur_indication_flag & INDICATION_FLAG_POWERON) {
+        g_indication_flag &= ~INDICATION_FLAG_POWERON;
+#ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
+        g_indication_flag |= INDICATION_FLAG_ONOFF;
+#endif
+#ifdef CONFIG_MESH_MODEL_LIGHTNESS_SRV
+        g_indication_flag |= INDICATION_FLAG_LIGHTNESS;
+#endif
+#ifdef CONFIG_MESH_MODEL_CTL_SRV
+        g_indication_flag |= INDICATION_FLAG_CTL;
+#endif
+    }
+
+    /* not report powerup with other status */
+    genie_event(GENIE_EVT_SDK_INDICATE, p_elem);
+
+    /* report powerup independently */
+    if (cur_indication_flag & INDICATION_FLAG_POWERON) {
+        g_indication_flag |= INDICATION_FLAG_POWERON;
+        genie_event(GENIE_EVT_SDK_MESH_PWRON_INDC, p_elem);
+    }
+#endif
 }
 
 void genie_indicate_start(uint16_t delay_ms, elem_state_t *p_elem)
@@ -847,6 +873,7 @@ void standart_indication(elem_state_t *p_elem)
 
     if(cur_indication_flag & INDICATION_FLAG_POWERON) {
         g_indication_flag &= ~INDICATION_FLAG_POWERON;
+#ifdef STATUS_INDICATION_IN_ONE_PACKET
         // the device will indication all states when powerup
 #ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV
         cur_indication_flag |= INDICATION_FLAG_ONOFF;
@@ -856,6 +883,7 @@ void standart_indication(elem_state_t *p_elem)
 #endif
 #ifdef CONFIG_MESH_MODEL_CTL_SRV
         cur_indication_flag |= INDICATION_FLAG_CTL;
+#endif
 #endif
     } else {
 #ifdef CONFIG_MESH_MODEL_GEN_ONOFF_SRV

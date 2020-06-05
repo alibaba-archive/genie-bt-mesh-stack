@@ -48,7 +48,7 @@ uint32_t vendor_timer_local_unixtime_get();
 int8_t vendor_timer_timezone_get();
 int vendor_timer_time_sync_get(uint16_t *period_time, uint8_t *retry_delay, uint8_t *retry_times);
 int vendor_timer_start(uint8_t index, uint32_t unix_time, vendor_attr_data_t *attr_data);
-int vendor_timer_periodic_start(uint8_t index, uint16_t periodic_time, uint8_t schedule, vendor_attr_data_t *attr_data);
+int vendor_timer_periodic_start(uint8_t index, uint32_t periodic_time, uint8_t schedule, vendor_attr_data_t *attr_data);
 int vendor_timer_remove(int8_t index);
 int vendor_timer_local_time_update(uint32_t unix_time);
 int vendor_timer_timezone_update(int8_t timezone);

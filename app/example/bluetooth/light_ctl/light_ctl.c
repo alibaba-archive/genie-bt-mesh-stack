@@ -74,6 +74,9 @@ uint32_t get_mesh_pbadv_time(void)
 elem_state_t g_elem_state[MESH_ELEM_STATE_COUNT];
 model_powerup_t g_powerup[MESH_ELEM_STATE_COUNT];
 
+struct k_delayed_work light_state_store_work;
+#define LIGHT_STATE_STORE_DELAY_TIME (5000)
+
 static struct bt_mesh_model element_models[] = {
     BT_MESH_MODEL_CFG_SRV(),
     BT_MESH_MODEL_HEALTH_SRV(),
@@ -95,6 +98,29 @@ static struct bt_mesh_model g_element_vendor_models[] = {
 struct bt_mesh_elem elements[] = {
     BT_MESH_ELEM(0, element_models, g_element_vendor_models, 0),
 };
+
+static void light_state_store(struct k_work *work)
+{
+    uint8_t *p_read = aos_malloc(sizeof(g_powerup));
+    genie_flash_read_userdata(GFI_MESH_POWERUP, p_read, sizeof(g_powerup));
+    model_powerup_t *pu = (model_powerup_t *)p_read;
+
+    if(memcmp(g_powerup, p_read, sizeof(g_powerup))) {
+        LIGHT_DBG("save %d %d %d", g_powerup[0].last_onoff, g_powerup[0].last_actual, g_powerup[0].last_temp);
+        genie_flash_write_userdata(GFI_MESH_POWERUP, (uint8_t *)g_powerup, sizeof(g_powerup));
+    }
+
+    aos_free(p_read);
+
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    if (g_powerup[0].last_onoff == 0 && ais_get_ota_ready() == 1) {
+        //Means have ota, wait for reboot while light off
+        aos_reboot();
+    } else {
+        g_powerup[0].last_onoff = 1;
+    }
+#endif
+}
 
 uint8_t get_vendor_element_num(void)
 {
@@ -118,14 +144,14 @@ static void _led_set(uint8_t onoff, uint16_t actual, uint16_t temperature);
 bool ota_check_reboot(void)
 {
     // the device will reboot when it is off
-    if(g_elem_state[0].state.onoff[T_CUR] == 0) {
+    if (g_elem_state[0].state.onoff[T_CUR] == 0) {
         // save light para, always off
         g_powerup[0].last_onoff = 0;
         genie_flash_write_userdata(GFI_MESH_POWERUP, (uint8_t *)g_powerup, sizeof(g_powerup));
-        BT_DBG("reboot!");
+        LIGHT_DBG("Allow to reboot!");
         return true;
     }
-    BT_DBG("no reboot!");
+    LIGHT_DBG("no reboot!");
     return false;
 }
 #endif
@@ -147,6 +173,7 @@ static void _init_light_para(void)
 #ifdef CONFIG_GENIE_OTA
             // if the device reboot by ota, it must be off.
             if(g_powerup[0].last_onoff == 0) {
+                g_elem_state[0].powerup.last_onoff = g_powerup[0].last_onoff;
                 g_elem_state[0].state.onoff[T_TAR] = 0;
                 // load lightness
                 if(g_powerup[0].last_actual) {
@@ -171,7 +198,7 @@ static void _init_light_para(void)
                 if(g_powerup[0].last_temp) {
                     g_elem_state[0].state.temp[T_TAR] = g_powerup[0].last_temp;
                 }
-                LIGHT_DBG("l:%d t:%d", g_powerup[0].last_actual, g_powerup[0].last_temp);
+                //LIGHT_DBG("l:%d t:%d", g_powerup[0].last_actual, g_powerup[0].last_temp);
 
                 // cal transition
                 if(g_elem_state[0].state.onoff[T_TAR] == 1) {
@@ -220,8 +247,6 @@ static void _reset_light_para(void)
 
 static void _save_light_state(elem_state_t *p_elem)
 {
-    uint8_t *p_read = aos_malloc(sizeof(g_powerup));
-
     if(p_elem->state.actual[T_CUR] != 0) {
         p_elem->powerup.last_actual = p_elem->state.actual[T_CUR];
         g_powerup[p_elem->elem_index].last_actual = p_elem->state.actual[T_CUR];
@@ -230,8 +255,14 @@ static void _save_light_state(elem_state_t *p_elem)
     p_elem->powerup.last_temp = p_elem->state.temp[T_CUR];
     g_powerup[p_elem->elem_index].last_temp = p_elem->state.temp[T_CUR];
     // always on
-    g_powerup[p_elem->elem_index].last_onoff = 1;
+    p_elem->powerup.last_onoff = p_elem->state.onoff[T_CUR];
+    g_powerup[p_elem->elem_index].last_onoff = p_elem->state.onoff[T_CUR];
 
+    k_delayed_work_submit(&light_state_store_work, LIGHT_STATE_STORE_DELAY_TIME);
+    LIGHT_DBG("light state %d %d %d", g_powerup[p_elem->elem_index].last_onoff, g_powerup[p_elem->elem_index].last_actual, g_powerup[p_elem->elem_index].last_temp);
+
+#if 0
+    uint8_t *p_read = aos_malloc(sizeof(g_powerup));
     genie_flash_read_userdata(GFI_MESH_POWERUP, p_read, sizeof(g_powerup));
 
     if(memcmp(g_powerup, p_read, sizeof(g_powerup))) {
@@ -239,10 +270,13 @@ static void _save_light_state(elem_state_t *p_elem)
         genie_flash_write_userdata(GFI_MESH_POWERUP, (uint8_t *)g_powerup, sizeof(g_powerup));
     }
     aos_free(p_read);
+#endif
 }
 
 static void _user_init(void)
 {
+    k_delayed_work_init(&light_state_store_work, light_state_store);
+
 #ifdef CONFIG_GENIE_OTA
     // check ota flag
     if(ais_get_ota_indicat()) {
@@ -347,7 +381,7 @@ static void _led_flash(uint8_t times, uint8_t reset)
         }
         g_flash_para.time_end = k_uptime_get() + times*LED_FLASH_PERIOD - LED_FLASH_OFF_TIME;
     }
-    LIGHT_DBG("%d (%d-%d) tar %04x", times, k_uptime_get(), g_flash_para.time_end, g_flash_para.actual_tar);
+    //LIGHT_DBG("%d (%d-%d) tar %04x", times, k_uptime_get(), g_flash_para.time_end, g_flash_para.actual_tar);
 
     k_timer_start(&g_flash_para.timer, LED_FLASH_CYCLE);
 }

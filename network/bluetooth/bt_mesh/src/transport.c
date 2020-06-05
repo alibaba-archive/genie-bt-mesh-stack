@@ -30,7 +30,7 @@
 #include "access.h"
 #include "foundation.h"
 #include "transport.h"
-//#include "bt_mesh_custom_log.h"
+#include "bt_mesh_custom_log.h"
 
 #define AID_MASK                    ((u8_t)(MESH_BIT_MASK(6)))
 

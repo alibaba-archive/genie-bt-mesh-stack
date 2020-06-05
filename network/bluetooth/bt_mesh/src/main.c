@@ -97,7 +97,9 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
     memcpy(bt_mesh.dev_key, dev_key, 16);
 
     bt_mesh_setup(seq, addr);
-
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    genie_flash_write_seq(&seq);
+#endif
     if (IS_ENABLED(CONFIG_BT_MESH_PROV)) {
         bt_mesh_prov_complete(net_idx, addr);
     }

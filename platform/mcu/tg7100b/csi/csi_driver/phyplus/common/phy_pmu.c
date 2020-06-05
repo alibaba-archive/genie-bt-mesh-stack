@@ -226,6 +226,7 @@ int32_t csi_pmu_enter_sleep(pmu_handle_t handle, pmu_mode_e mode)
         case PMU_MODE_SHUTDOWN:
             return ERR_PMU(DRV_ERROR_UNSUPPORTED);
         case PMU_MODE_STANDBY:
+             subWriteReg(0x4000f01c, 6, 6, 0x00); //disable software control
              enter_sleep_off_mode(2);
              break;
         case PMU_MODE_DORMANT:

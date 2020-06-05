@@ -128,6 +128,7 @@ static int _set_pwm_duty(uint8_t channel, uint8_t duty)
             drv_pinmux_config(pwm_dev->port, PIN_FUNC_GPIO);
         }
     }
+
     return 0;
 }
 
@@ -136,6 +137,7 @@ static void _led_set(uint8_t onoff, uint16_t actual, uint16_t temperature)
 {
     static uint8_t last_duty[LED_CHANNEL_MAX] = {0xFF, 0xFF};
     uint8_t duty[LED_CHANNEL_MAX];  //0~100
+    //LIGHT_DBG("%d %d %d", onoff, actual, temperature);
 
     if(onoff == 0) {
         duty[LED_COLD_CHANNEL] = 0;
@@ -159,5 +161,19 @@ int led_startup(void)
     genie_flash_init();
     _led_init();
     _init_light_para();
-    _led_flash(1, 0);
+    uint8_t ota_flag = ais_get_ota_indicat();
+    if (!(ota_flag && g_powerup[0].last_onoff == 0)) {
+        _led_flash(1, 0);
+        g_elem_state[0].state.onoff[T_CUR] = g_elem_state[0].state.onoff[T_TAR] = 1;
+    }
+
+#ifdef CONFIG_ALI_SIMPLE_MODLE
+    g_elem_state[0].state.onoff[T_CUR] = g_elem_state[0].state.onoff[T_TAR];
+#ifdef MESH_MODEL_LIGHTNESS_SRV
+    g_elem_state[0].state.actual[T_CUR] = g_elem_state[0].state.actual[T_TAR];
+#endif
+#ifdef MESH_MODEL_CTL_SRV
+    g_elem_state[0].state.temp[T_CUR] = g_elem_state[0].state.temp[T_TAR];
+#endif
+#endif
 }

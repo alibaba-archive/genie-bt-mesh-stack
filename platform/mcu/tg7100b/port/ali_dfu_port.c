@@ -52,6 +52,12 @@ int ali_dfu_image_update(short signature, int offset, int length, int *buf)
     uint32_t wr_idx = offset;
     uint8_t *wr_buf = buf;
 
+    if (offset == 0) {
+        image_crc16 = util_crc16_ccitt(wr_buf, length, NULL);
+    } else {
+        image_crc16 = util_crc16_ccitt(wr_buf, length, &image_crc16);
+    }
+
     ///get OTA temporary partition information
     partition_info = hal_flash_get_info(HAL_PARTITION_OTA_TEMP);
 
@@ -68,19 +74,6 @@ int ali_dfu_image_update(short signature, int offset, int length, int *buf)
     if (ret < 0) {
         LOG("write flash error!!\r\n");
         return -1;
-    }
-
-    wr_idx = offset + (SPIF_SECTOR_SIZE << 1);
-    ret = hal_flash_read(HAL_PARTITION_OTA_TEMP, &wr_idx, (void *)wr_buf, length);
-    if (ret < 0) {
-        LOG("read flash error!!\r\n");
-        return -1;
-    }
-
-    if (offset == 0) {
-        image_crc16 = util_crc16_ccitt((const uint8_t *)wr_buf, length, NULL);
-    } else {
-        image_crc16 = util_crc16_ccitt((const uint8_t *)wr_buf, length, &image_crc16);
     }
 
     //LOG("write ok!\n");
@@ -150,6 +143,10 @@ int erase_dfu_flash(void)
     if (memcmp(wr_buf, cmp_buf, sizeof(wr_buf)) == 0) {
         return 0;
     }
+
+    LOG("Misc dirty!\n");
+
+    offset = (SPIF_SECTOR_SIZE << 1);
 
     /* For bootloader upgrade, we will reserve two sectors, then save the image */
     ret = hal_flash_erase(HAL_PARTITION_OTA_TEMP, offset, length);

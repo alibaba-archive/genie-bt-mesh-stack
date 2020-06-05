@@ -22,10 +22,12 @@ struct {
     aos_sem_t sem;
     uint8_t sda;
     uint8_t scl;
+    uint8_t sdamux;
+    uint8_t sclmux;
     uint8_t transfer_flag:1;
 } i2c_config[CHIP_I2C_NUM_BUILDIN] = {
-    {{0}, P31, P32, 0},
-    {{0}, P14, P15, 0}
+    {{0}, P31, P32, IIC0_SDA, IIC0_SCL, 0},
+    {{0}, P20, P24, IIC1_SDA, IIC1_SCL, 0}
 };
 
 static void iic_event_cb_fun(int32_t idx, iic_event_e event)
@@ -51,8 +53,8 @@ int32_t hal_i2c_init(i2c_dev_t *i2c)
 		printf("i2c err param\n");
 		return -1;
 	}
-    drv_pinmux_config(i2c_config[i2c->port].scl, IIC0_SCL);
-    drv_pinmux_config(i2c_config[i2c->port].sda, IIC0_SDA);
+    drv_pinmux_config(i2c_config[i2c->port].scl, i2c_config[i2c->port].sclmux);
+    drv_pinmux_config(i2c_config[i2c->port].sda, i2c_config[i2c->port].sdamux);
 
 	g_i2c_handle[i2c->port] = csi_iic_initialize(i2c->port, iic_event_cb_fun);
 	if (g_i2c_handle[i2c->port] == NULL) {

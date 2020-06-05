@@ -11,6 +11,9 @@
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_EVENT)
 #include "common/log.h"
 
+#ifndef CONFIG_MESH_SEQ_COUNT_INT
+#define CONFIG_MESH_SEQ_COUNT_INT 30
+#endif
 extern void user_event(E_GENIE_EVENT event, void *p_arg);
 extern elem_state_t g_elem_state[];
 
@@ -184,7 +187,9 @@ static E_GENIE_EVENT _genie_event_handle_mesh_init(void)
     BT_DBG("flag %02x", read_flag);
     if((read_flag & 0x1F) == 0x1F) {
         BT_INFO_G(">>>proved<<<");
-
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+        seq += CONFIG_MESH_SEQ_COUNT_INT;
+#endif
         bt_mesh_provision(netkey.key, netkey.net_index, netkey.flag, netkey.ivi, seq, addr, devkey);
         extern void genie_appkey_register(u16_t net_idx, u16_t app_idx, const u8_t val[16], bool update);
         genie_appkey_register(appkey.net_index, appkey.key_index, appkey.key, appkey.flag);
@@ -359,7 +364,13 @@ static E_GENIE_EVENT _genie_event_handle_hb_set(mesh_hb_para_t *p_para)
 static E_GENIE_EVENT _genie_event_handle_seq_update(void)
 {
     uint32_t seq = bt_mesh.seq;
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    if (seq % CONFIG_MESH_SEQ_COUNT_INT == 0) {
+        genie_flash_write_seq(&seq);
+    }
+#else
     genie_flash_write_seq(&seq);
+#endif
     return GENIE_EVT_SDK_SEQ_UPDATE;
 }
 
@@ -502,12 +513,12 @@ static E_GENIE_EVENT _genie_event_handle_order_msg(vendor_attr_data_t *attr_data
 
     if (attr_data->type == ONOFF_T) {
         g_elem_state[0].state.onoff[T_TAR] = attr_data->para;
-    }
-#ifdef CONFIG_MESH_MODEL_TRANS
-    return GENIE_EVT_SDK_TRANS_CYCLE;
-#else
-    return GENIE_EVT_SDK_ACTION_DONE;
+#ifdef CONFIG_MESH_MODEL_VENDOR_SRV
+        g_indication_flag |= INDICATION_FLAG_ONOFF;
 #endif
+    }
+
+    return GENIE_EVT_SDK_ACTION_DONE;
 }
 
 #endif

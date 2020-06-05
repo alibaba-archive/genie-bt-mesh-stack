@@ -34,7 +34,7 @@ struct vendor_timer_t {
     uint8_t  index;
     uint8_t state: 4;
     uint8_t periodic: 1;
-    uint16_t periodic_time;
+    uint32_t periodic_time;
     uint8_t  schedule;
     uint32_t unixtime_match;
     vendor_attr_data_t attr_data;
@@ -612,7 +612,7 @@ int vendor_timer_utc_start(uint8_t index, UTCTimeStruct utc_time, vendor_attr_da
     return vendor_timer_start(index, UTC2unix(&utc_time), attr_data);
 }
 
-int vendor_timer_periodic_start(uint8_t index, uint16_t periodic_time, uint8_t schedule, vendor_attr_data_t *attr_data)
+int vendor_timer_periodic_start(uint8_t index, uint32_t periodic_time, uint8_t schedule, vendor_attr_data_t *attr_data)
 {
     struct vendor_timer_t *vendor_timer;
 

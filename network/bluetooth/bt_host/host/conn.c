@@ -942,8 +942,12 @@ void bt_conn_set_state(struct bt_conn *conn, bt_conn_state_t state)
                 if (conn->type == BT_CONN_TYPE_LE) {
                     k_delayed_work_cancel(&conn->le.update_work);
                 }
-
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+                conn_cleanup(conn);
+                aos_msleep(50);
+#else
                 atomic_set_bit(conn->flags, BT_CONN_CLEANUP);
+#endif
                 /* The last ref will be dropped by the tx_thread */
             } else if (old_state == BT_CONN_CONNECT) {
                 /* conn->err will be set in this case */
@@ -1132,6 +1136,14 @@ int bt_conn_get_info(const struct bt_conn *conn, struct bt_conn_info *info)
 
 static int bt_hci_disconnect(struct bt_conn *conn, u8_t reason)
 {
+#if  defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    int err;
+    err = hci_api_le_disconnect(conn->handle, reason);
+    if (err) {
+        BT_ERR("err send disconnect:%d",err);
+        return err;
+    }
+#else
     struct net_buf *             buf;
     struct bt_hci_cp_disconnect *disconn;
     int                          err;
@@ -1149,6 +1161,7 @@ static int bt_hci_disconnect(struct bt_conn *conn, u8_t reason)
     if (err) {
         return err;
     }
+#endif
 
     bt_conn_set_state(conn, BT_CONN_DISCONNECT);
 

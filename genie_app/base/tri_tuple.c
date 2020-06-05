@@ -267,7 +267,10 @@ void genie_ais_adv_init(uint8_t ad_structure[14], uint8_t is_silent)
     }
 
     memcpy(ad_structure+4, &g_pid, 4);
-    memcpy(ad_structure+8, g_mac, 6);
+    // mac addr
+    for (int i = 0; i < 6; i++) {
+        ad_structure[8 + i] = g_mac[5 - i];
+    }
 }
 #endif
 

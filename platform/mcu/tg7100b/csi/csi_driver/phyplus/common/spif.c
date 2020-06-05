@@ -330,12 +330,13 @@ int phy_ProgramPage64(unsigned long offset, const unsigned char *buf,  int size)
 
 
     for (i = 0; i < 16; i++) {
-        data[i] = 0;
+        data[i] = 0xffffffff;
     }
 
     i = 0;
 
     while (i < size) {
+        data[i >> 2] &= (~(0xffUL << ((i & 0x03) << 3)));
         data[i >> 2] |= buf[i] << ((i & 0x03) << 3);
         i++;
     }
@@ -624,8 +625,11 @@ int32_t csi_spiflash_uninitialize(spiflash_handle_t handle)
 int32_t csi_spiflash_read(spiflash_handle_t handle, uint32_t addr, void *data, uint32_t cnt)
 {
     int i;
+    uint32_t rd = 0;
     uint32_t *p_rd = data;
+    uint8_t *pdata = data;
     uint32_t len_rd = 0;
+    int8_t len_left;
     ck_spiflash_priv_t *spiflash_priv = handle;
 
 #if(DEBUG_EN == 1)
@@ -652,13 +656,34 @@ int32_t csi_spiflash_read(spiflash_handle_t handle, uint32_t addr, void *data, u
     addr &= 0xffffff;
     spiflash_priv->status.error = 0U;
 
-    len_rd  = (cnt % 4) ? (cnt / 4 + 1) : (cnt / 4);
+    len_rd = (cnt >> 2);
 
+    if ((((uint32_t)p_rd >> 2) << 2) == (uint32_t)p_rd) {
     for (i = 0; i < len_rd; i++) {
         *(unsigned int *)(p_rd + i) = phy_ReadFlash(addr + (i << 2));
+        }
+    } else {
+        for (i = 0; i < len_rd; i++) {
+            rd = phy_ReadFlash(addr + (i << 2));
+            pdata[0 + (i << 2)] = rd & 0xff;
+            pdata[1 + (i << 2)] = (rd >> 8) & 0xff;
+            pdata[2 + (i << 2)] = (rd >> 16) & 0xff;
+            pdata[3 + (i << 2)] = (rd >> 24) & 0xff;
+        }
     }
 
-    return (len_rd << 2);
+    len_left = cnt - (len_rd << 2);
+    if (len_left > 0) {
+        rd = phy_ReadFlash(addr + (len_rd << 2));
+        i = 0;
+
+        while (i < len_left) {
+            pdata[i + (len_rd << 2)] = (rd >> (i << 3)) & 0xff;
+            i++;
+        }
+    }
+
+    return cnt;
 }
 
 //#include "log.h"

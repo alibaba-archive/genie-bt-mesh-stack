@@ -42,5 +42,8 @@ void ais_clear_ota_indicat(void);
  */
 void ais_check_ota_change(void);
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+bool ais_get_ota_ready(void);
+#endif
 #endif
 

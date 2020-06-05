@@ -4,14 +4,17 @@
 
 #include <port/mesh_hal_ble.h>
 #include <errno.h>
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_CORE)
+
+#include <common/log.h>
 
 #ifndef CONFIG_MESH_STACK_ALONE
 #include <conn.h>
 #include <gatt.h>
 #include <bluetooth.h>
+
 #if defined(BOARD_CH6121EVB) || defined(BOARD_TG7100B)
 
-#define SCHD_LOGD(...) //printf
 /*
     Genie MESH define the interval should be 20ms each packet.
     To avoid the accuracy of system timer, we define the timer to 15 ms
@@ -88,14 +91,14 @@ struct {
 
 static int adv_scan_schd_idle_enter(adv_scan_schd_state_en st)
 {
-    SCHD_LOGD("idle enter\n");
+    BT_DBG("idle enter\n");
     memset(&adv_scan_schd.param, 0, sizeof(struct adv_scan_data_t));
     return 0;
 }
 
 static int adv_scan_schd_idle_exit(adv_scan_schd_state_en st)
 {
-    SCHD_LOGD("idle exit\n");
+    BT_DBG("idle exit\n");
     // do nothing
     return 0;
 }
@@ -103,11 +106,21 @@ static int adv_scan_schd_idle_exit(adv_scan_schd_state_en st)
 static int adv_scan_schd_adv_enter(adv_scan_schd_state_en st)
 {
     int ret;
-    SCHD_LOGD("adv on enter\n");
+    BT_DBG("adv on enter\n");
 
     if (st == SCHD_IDLE || st == SCHD_ADV_SCAN || st == SCHD_ADV) {
         if (adv_scan_schd.param.ad_len) {
-            ret = bt_le_adv_start_instant(&adv_scan_schd.param.adv_param,
+            struct bt_le_adv_param  adv_param;
+            adv_param = adv_scan_schd.param.adv_param;
+
+            //LL not support 20ms interval nonconnectable adv,change to 100ms
+            if (!(adv_param.options & BT_LE_ADV_OPT_CONNECTABLE) && adv_param.interval_min < 0x00a0)
+            {
+                adv_param.interval_min = 0x00a0;
+                adv_param.interval_max = 0x00a0;
+            }
+
+            ret = bt_le_adv_start_instant(&adv_param,
                                           adv_scan_schd.param.ad_data, adv_scan_schd.param.ad_len,
                                           adv_scan_schd.param.sd_data, adv_scan_schd.param.sd_len);
 
@@ -124,7 +137,7 @@ static int adv_scan_schd_adv_enter(adv_scan_schd_state_en st)
 
 static int adv_scan_schd_adv_exit(adv_scan_schd_state_en st)
 {
-    SCHD_LOGD("adv on exit\n");
+    BT_DBG("adv on exit\n");
 
     if (st == SCHD_ADV_SCAN || st == SCHD_IDLE || st == SCHD_ADV) {
         return bt_le_adv_stop_instant();
@@ -140,7 +153,7 @@ static int adv_scan_schd_scan_enter(adv_scan_schd_state_en st)
         return 0;
     }
 
-    SCHD_LOGD("scan on enter\n");
+    BT_DBG("scan on enter\n");
     if (st == SCHD_IDLE || st == SCHD_ADV_SCAN) {
         return bt_le_scan_start(&adv_scan_schd.param.scan_param, adv_scan_schd.param.scan_cb);
     }
@@ -155,7 +168,7 @@ static int adv_scan_schd_scan_exit(adv_scan_schd_state_en st)
         return 0;
     }
 
-    SCHD_LOGD("scan on exit\n");
+    BT_DBG("scan on exit\n");
     if (st == SCHD_ADV_SCAN || st == SCHD_IDLE) {
         return bt_le_scan_stop();
     }
@@ -165,7 +178,7 @@ static int adv_scan_schd_scan_exit(adv_scan_schd_state_en st)
 
 static int adv_scan_schd_adv_scan_enter(adv_scan_schd_state_en st)
 {
-    SCHD_LOGD("adv scan on enter\n");
+    BT_DBG("adv scan on enter\n");
 
     if (st == SCHD_ADV || st == SCHD_SCAN || st == SCHD_ADV_SCAN) {
         adv_scan_schd.flag = FLAG_RESTART;
@@ -179,7 +192,7 @@ static int adv_scan_schd_adv_scan_enter(adv_scan_schd_state_en st)
 static int adv_scan_schd_adv_scan_exit(adv_scan_schd_state_en st)
 {
     int ret;
-    SCHD_LOGD("adv scan on exit\n");
+    BT_DBG("adv scan on exit\n");
 
     if (st == SCHD_ADV || st == SCHD_SCAN || st == SCHD_ADV_SCAN) {
         k_timer_stop(&adv_scan_schd.timer);
@@ -187,14 +200,14 @@ static int adv_scan_schd_adv_scan_exit(adv_scan_schd_state_en st)
         ret = bt_le_scan_stop();
 
         if (ret && ret != -EALREADY) {
-            SCHD_LOGD("scan stop err %d\n", ret);
+            BT_ERR("scan stop err %d\n", ret);
             return ret;
         }
 
         ret = bt_le_adv_stop();
 
         if (ret && ret != -EALREADY) {
-            SCHD_LOGD("adv stop err %d\n", ret);
+            BT_ERR("adv stop err %d\n", ret);
             return ret;
         }
 
@@ -204,10 +217,10 @@ static int adv_scan_schd_adv_scan_exit(adv_scan_schd_state_en st)
     return -EINVAL;
 }
 
-int bt_mesh_adv_scan_schd(adv_scan_schd_state_en st)
+static int bt_mesh_adv_scan_schd(adv_scan_schd_state_en st)
 {
     int ret;
-    SCHD_LOGD("%d->%d\n", adv_scan_schd.cur_st, st);
+    BT_DBG("%d->%d\n", adv_scan_schd.cur_st, st);
 
     if (st < SCHD_INVAILD) {
         ret = adv_scan_schd_funcs[adv_scan_schd.cur_st].exit(st);
@@ -222,9 +235,7 @@ int bt_mesh_adv_scan_schd(adv_scan_schd_state_en st)
             return ret;
         }
 
-        k_mutex_lock(&adv_scan_schd.mutex, K_FOREVER);
         adv_scan_schd.cur_st = st;
-        k_mutex_unlock(&adv_scan_schd.mutex);
 
         return 0;
     }
@@ -232,7 +243,7 @@ int bt_mesh_adv_scan_schd(adv_scan_schd_state_en st)
     return -EINVAL;
 }
 
-int bt_mesh_adv_scan_schd_action(adv_scan_schd_action_en action)
+static int bt_mesh_adv_scan_schd_action(adv_scan_schd_action_en action)
 {
     int ret;
 
@@ -266,12 +277,12 @@ void adv_scan_timer(void *timer, void *arg)
     }
 
     uint32_t next_time = 0;
-
+    k_mutex_lock(&adv_scan_schd.mutex, 5000);
     if (next_state == ADV) {
         ret = bt_le_scan_stop();
 
         if (ret && ret != -EALREADY) {
-            SCHD_LOGD("scan stop err %d\n", ret);
+            BT_ERR("scan stop err %d\n", ret);
         }
 
         struct bt_le_adv_param param = adv_scan_schd.param.adv_param;
@@ -285,7 +296,7 @@ void adv_scan_timer(void *timer, void *arg)
                                       adv_scan_schd.param.sd_data, adv_scan_schd.param.sd_len);
 
         if (ret) {
-            SCHD_LOGD("adv start err %d\n", ret);
+            BT_ERR("adv start err %d\n", ret);
         }
 
         next_state = SCAN;
@@ -295,7 +306,7 @@ void adv_scan_timer(void *timer, void *arg)
         ret = bt_le_adv_stop();
 
         if (ret && ret != -EALREADY) {
-            SCHD_LOGD("adv stop err %d\n", ret);
+            BT_ERR("adv stop err %d\n", ret);
         }
 
         /* Here, we define the adv window of each package in adv duration (120ms or xmit related time)*/
@@ -309,12 +320,13 @@ void adv_scan_timer(void *timer, void *arg)
             ret = bt_le_scan_start(&adv_scan_schd.param.scan_param, adv_scan_schd.param.scan_cb);
 
             if (ret) {
-                SCHD_LOGD("scan err %d\n", ret);
+                BT_ERR("scan err %d\n", ret);
             }
         }
         adv_time = 0;
         next_state = ADV;
     }
+    k_mutex_unlock(&adv_scan_schd.mutex);
 
     k_timer_start(&adv_scan_schd.timer, krhino_ms_to_ticks(next_time));
 }
@@ -369,8 +381,8 @@ int bt_mesh_adv_start(const struct bt_mesh_le_adv_param *param,
     adv_scan_schd.param.adv_param = *(const struct bt_le_adv_param *)param;
     adv_scan_schd.param.ad_len = set_ad_data(adv_scan_schd.param.ad_data, (const struct bt_data *)ad, ad_len);
     adv_scan_schd.param.sd_len = set_ad_data(adv_scan_schd.param.sd_data, (const struct bt_data *)sd, sd_len);
-    k_mutex_unlock(&adv_scan_schd.mutex);
     bt_mesh_adv_scan_schd_action(ADV_ON);
+    k_mutex_unlock(&adv_scan_schd.mutex);
     return 0;
 }
 
@@ -389,14 +401,16 @@ int bt_mesh_adv_start_instant(const struct bt_mesh_le_adv_param *param,
     memcpy(adv_scan_schd.param.sd_data, sd_data, sd_len);
     adv_scan_schd.param.ad_len = ad_len;
     adv_scan_schd.param.sd_len = sd_len;
-    k_mutex_unlock(&adv_scan_schd.mutex);
     bt_mesh_adv_scan_schd_action(ADV_ON);
+    k_mutex_unlock(&adv_scan_schd.mutex);
     return 0;
 }
 
 int bt_mesh_adv_stop(void)
 {
+    k_mutex_unlock(&adv_scan_schd.mutex);
     bt_mesh_adv_scan_schd_action(ADV_OFF);
+    k_mutex_unlock(&adv_scan_schd.mutex);
     return 0;
 }
 
@@ -405,14 +419,16 @@ int bt_mesh_scan_start(const struct bt_mesh_le_scan_param *param, bt_mesh_le_sca
     k_mutex_lock(&adv_scan_schd.mutex, K_FOREVER);
     adv_scan_schd.param.scan_param = *(const struct bt_le_scan_param *)param;
     adv_scan_schd.param.scan_cb = (bt_le_scan_cb_t *)cb;
-    k_mutex_unlock(&adv_scan_schd.mutex);
     bt_mesh_adv_scan_schd_action(SCAN_ON);
+    k_mutex_unlock(&adv_scan_schd.mutex);
     return 0;
 }
 
 int bt_mesh_scan_stop(void)
 {
+    k_mutex_lock(&adv_scan_schd.mutex, K_FOREVER);
     bt_mesh_adv_scan_schd_action(SCAN_OFF);
+    k_mutex_unlock(&adv_scan_schd.mutex);
     return 0;
 }
 
@@ -534,7 +550,7 @@ int bt_mesh_gatt_service_register(struct bt_mesh_gatt_service *svc)
     }
 
     if (i >= SVC_ENTRY_MAX) {
-        printf("Error: no space left for service register.");
+        BT_ERR("Error: no space left for service register.");
         return -1;
     }
 

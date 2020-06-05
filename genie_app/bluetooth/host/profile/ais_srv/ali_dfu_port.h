@@ -7,7 +7,9 @@
 #include <stdbool.h>
 
 #define DFU_IMAGE_SIZE_MAX 240*1024
+#ifndef CONFIG_AIS_TOTAL_FRAME
 #define CONFIG_AIS_TOTAL_FRAME 16
+#endif
 
 enum {
     DFU_IMAGE_A = 0,

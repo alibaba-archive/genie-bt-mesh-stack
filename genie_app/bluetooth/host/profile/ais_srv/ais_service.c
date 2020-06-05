@@ -10,11 +10,13 @@
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_OTA)
 #include "common/log.h"
+#include "bt_mesh_custom_log.h"
 
 #define AIS_OTA_AUTH_TIMEOUT 10000      //10s
 #define AIS_OTA_DISCONN_TIMEOUT 60000   //60s
 #define AIS_OTA_REPORT_TIMEOUT (CONFIG_AIS_TOTAL_FRAME*400)
 #define AIS_OTA_REBOOT_TIMEOUT 3000     //3s
+#define AIS_DISCONNECT_TIMEOUT 1000     //1s
 
 #define AIS_SERVICE_UUID           BT_UUID_DECLARE_16(0xFEB3)
 #define AIS_READ_UUID              BT_UUID_DECLARE_16(0xFED4)
@@ -109,7 +111,11 @@ typedef struct {
 
 typedef struct {
     ais_header_t header;
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    uint8_t payload[256];
+#else
     uint8_t payload[16];
+#endif
 } __attribute__ ((packed)) ais_pdu_t;
 
 typedef struct {
@@ -142,6 +148,13 @@ enum{
     OTA_FLAG_SILENT = 0x02,
 };
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+#define OTA_RECV_BUF_SIZE           (CONFIG_AIS_TOTAL_FRAME * 128)
+#define OTA_RECV_MAX_ERR_COUNT      10
+#else
+#define OTA_RECV_MAX_ERR_COUNT      5
+#endif
+
 typedef struct {
     //uint8_t auth;
     //uint8_t ota_process;
@@ -152,6 +165,10 @@ typedef struct {
     ota_info_t ota_info;
 #if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
     uint8_t flash_clean:1;
+    uint8_t ota_ready:1;
+    k_timer_t timerdisconnect;
+    uint8_t recv_buf[OTA_RECV_BUF_SIZE];
+    uint16_t rx_len;
 #endif
 } ais_srv_ctx_t;
 
@@ -164,6 +181,13 @@ static struct bt_gatt_indicate_params *p_indicate = NULL;
 static uint8_t g_ais_conn = 0;
 
 extern bool ota_check_reboot(void);
+static void _ais_execute_disconnet();
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+bool ais_get_ota_ready(void)
+{
+    return g_ais_srv_ctx.ota_ready;
+}
+#endif
 
 bool ais_get_ota_indicat(void)
 {
@@ -225,6 +249,9 @@ static void _ais_set_ota_change(void)
 #else
     uint32_t ota_change = 0xA5A5A501;
     genie_flash_write_reliable(GFI_OTA_IMAGE_CHANGE, (uint8_t *)&ota_change, sizeof(ota_change));
+#endif
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    g_ais_srv_ctx.ota_ready = 1;
 #endif
 }
 
@@ -290,7 +317,9 @@ static void _ais_server_indicate(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, ui
     p_indicate->func = _ais_indicate_rsp;
     p_indicate->data = &msg;
     p_indicate->len = len + 4;
+    if (g_ais_srv_ctx.p_conn) {
     bt_gatt_indicate(g_ais_srv_ctx.p_conn, p_indicate);
+    }
 }
 
 static void _ais_server_notify(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, uint16_t len)
@@ -314,39 +343,63 @@ static void _ais_server_notify(uint8_t msg_id, uint8_t cmd, uint8_t *p_msg, uint
 
     BT_DBG("len %d: %s", len+4, bt_hex(&msg, len+4));
 
-    bt_gatt_notify(g_ais_srv_ctx.p_conn, &_ais_srv_attrs[11], &msg, len+4);
+    if (g_ais_srv_ctx.p_conn) {
+        bt_gatt_notify(g_ais_srv_ctx.p_conn, &_ais_srv_attrs[11], &msg, len+4);
+    }
 }
 
 void ais_ota_disconnect(uint8_t reason)
 {
     g_ais_conn = 0;
-    if(g_ais_srv_ctx.state != AIS_STATE_REBOOT) {
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    BT_DBG("dis 0x%x, state %d", reason, g_ais_srv_ctx.state);
+    if (g_ais_srv_ctx.state != AIS_STATE_REBOOT) {
+        k_timer_stop(&g_ais_srv_ctx.timer);
+        _ais_execute_disconnet();
+        g_ais_srv_ctx.state = AIS_STATE_DISCON;
+        /* Flash is dirty, need erase */
+        if (g_ais_srv_ctx.flash_clean == 1 &&
+            g_ais_srv_ctx.ota_ready == 0) {
+            erase_dfu_flash();
+            g_ais_srv_ctx.flash_clean = 0;
+        }
+        /* restart adv */
+        genie_event(GENIE_EVT_SDK_AIS_DISCON, NULL);
+    } else {
+        if (g_ais_srv_ctx.ota_info.ota_flag != OTA_FLAG_SILENT || ota_check_reboot()) {
+            //clear image change
+            BT_WARN("OTA Reboot!");
+            genie_flash_delete_reliable(GFI_OTA_IMAGE_CHANGE);
+            dfu_reboot();
+        }
+    }
+#else
+    if (g_ais_srv_ctx.state != AIS_STATE_REBOOT) {
         BT_DBG("disconnect reason 0x%x", reason);
         k_timer_stop(&g_ais_srv_ctx.timer);
         bt_conn_disconnect(g_ais_srv_ctx.p_conn, reason);
         g_ais_srv_ctx.state = AIS_STATE_DISCON;
-#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
-        /* Flash is dirty, need erase */
-        if (g_ais_srv_ctx.flash_clean == 0) {
-            erase_dfu_flash();
-            g_ais_srv_ctx.flash_clean = 1;
-        }
-#endif
         /* restart adv */
         genie_event(GENIE_EVT_SDK_AIS_DISCON, NULL);
     }
+#endif
 }
 
 static void _ais_timer_refresh(void)
 {
     BT_DBG(" %d", g_ais_srv_ctx.state);
     if(!g_ais_conn) {
-        BT_DBG("connect from proxy, ignore");
+        BT_WARN("connect from proxy, ignore");
         return;
     }
     switch(g_ais_srv_ctx.state) {
         case AIS_STATE_DISCON:
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+            k_timer_stop(&g_ais_srv_ctx.timer);
+            _ais_execute_disconnet();
+#else
             ais_ota_disconnect(BT_HCI_ERR_UNACCEPT_CONN_PARAM);
+#endif
             break;
         case AIS_STATE_CONNECT:
         case AIS_STATE_IDLE:
@@ -360,6 +413,9 @@ static void _ais_timer_refresh(void)
             break;
         case AIS_STATE_REBOOT:
             k_timer_start(&g_ais_srv_ctx.timer, AIS_OTA_REBOOT_TIMEOUT);
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+            k_timer_start(&g_ais_srv_ctx.timerdisconnect, AIS_DISCONNECT_TIMEOUT);
+#endif
             break;
         default:
             break;
@@ -368,10 +424,12 @@ static void _ais_timer_refresh(void)
 
 void ais_connect(struct bt_conn *p_conn)
 {
-    BT_DBG("status %d", g_ais_srv_ctx.state);
-    g_ais_srv_ctx.p_conn = p_conn;
-    g_ais_srv_ctx.state = AIS_STATE_CONNECT;
-    _ais_timer_refresh();
+    if (g_ais_srv_ctx.state != AIS_STATE_REBOOT) {
+        BT_DBG("status %d", g_ais_srv_ctx.state);
+        g_ais_srv_ctx.p_conn = p_conn;
+        g_ais_srv_ctx.state = AIS_STATE_CONNECT;
+        _ais_timer_refresh();
+    }
 }
 
 static void _ais_ota_status_report(void)
@@ -390,6 +448,21 @@ static void _ais_ota_status_report(void)
     _ais_server_notify(0, AIS_OTA_STATUS, payload, 16);
 }
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+static void _ais_execute_disconnet()
+{
+    if (g_ais_srv_ctx.p_conn) {
+        bt_conn_disconnect(g_ais_srv_ctx.p_conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+        g_ais_srv_ctx.p_conn = NULL;
+    }
+}
+
+static void _ais_dis_timer_cb(void *p_timer, void *args)
+{
+    _ais_execute_disconnet();
+}
+#endif
+
 static void _ais_ota_timer_cb(void *p_timer, void *args)
 {
     BT_DBG(" %d", g_ais_srv_ctx.state);
@@ -404,15 +477,19 @@ static void _ais_ota_timer_cb(void *p_timer, void *args)
             break;
         case AIS_STATE_OTA:
             //BT_DBG("");
-            if(g_ais_srv_ctx.ota_info.err_count++ >= 5) {
-                BT_DBG("OTA failed");
+            if (g_ais_srv_ctx.ota_info.err_count++ >= OTA_RECV_MAX_ERR_COUNT) {
+                BT_ERR("OTA failed");
                 g_ais_srv_ctx.state = AIS_STATE_IDLE;
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+                g_ais_srv_ctx.rx_len = 0;
+#endif
                 _ais_server_indicate(0, AIS_RESP_ERR, NULL, 0);
             } else {
                 _ais_ota_status_report();
             }
             break;
         case AIS_STATE_REBOOT:
+#if !defined(BOARD_TG7100B) && !defined(BOARD_CH6121EVB)
             bt_conn_disconnect(g_ais_srv_ctx.p_conn, BT_HCI_ERR_SUCCESS);
             if(g_ais_srv_ctx.ota_info.ota_flag != OTA_FLAG_SILENT || ota_check_reboot()) {
                 //clear image change
@@ -422,6 +499,7 @@ static void _ais_ota_timer_cb(void *p_timer, void *args)
                 BT_DBG("silent");
                 g_ais_srv_ctx.state = AIS_STATE_IDLE;
             }
+#endif
             break;
         default:
             break;
@@ -501,7 +579,11 @@ static bool _ais_ota_upd_req(uint8_t msg_id, ais_ota_upd_req_t *p_ota_req)
     ais_ota_upd_resp_t *p_upd_resp = (ais_ota_upd_resp_t *)payload;
 
     BT_DBG("ota_ver %08x size %d temp: %d", p_ota_req->ver, p_ota_req->fw_size, tmp_size);
-
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    if (g_ais_srv_ctx.ota_ready == 1) {
+        return false;
+    }
+#endif
     memset(payload, 10, sizeof(payload));
     if (p_ota_req->image_type != 0 || p_ota_req->ver <= PROJECT_SW_VERSION ||
         tmp_size < p_ota_req->fw_size || 0 == p_ota_req->fw_size) {
@@ -549,7 +631,7 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
     }
 
     if (p_msg->header.seq != g_ais_srv_ctx.ota_info.except_seq) {
-        BT_DBG("expected %d, rx %d, len %d", g_ais_srv_ctx.ota_info.except_seq, p_msg->header.seq, p_msg->header.payload_len);
+        BT_WARN("expected %d, rx %d, len %d", g_ais_srv_ctx.ota_info.except_seq, p_msg->header.seq, p_msg->header.payload_len);
         if(g_ais_srv_ctx.ota_info.err_count++ == 0) {
             /* send fail */
             _ais_ota_status_report();
@@ -567,19 +649,30 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
 
     g_ais_srv_ctx.ota_info.err_count = 0;
 
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    if (p_msg->header.seq == 0) {
+        g_ais_srv_ctx.rx_len = 0;
+        memset(g_ais_srv_ctx.recv_buf, 0, sizeof(g_ais_srv_ctx.recv_buf));
+    }
+#endif
+
     if (g_ais_srv_ctx.ota_info.len_4B) {
         memcpy(g_ais_srv_ctx.ota_info.data_4B + g_ais_srv_ctx.ota_info.len_4B,
                 p_msg->payload, 4 - g_ais_srv_ctx.ota_info.len_4B);
 
         //BT_DBG("save 4B.2 %d", 4 - g_ais_srv_ctx.ota_info.len_4B);
-        unlock_flash_all();
 #if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
-        g_ais_srv_ctx.flash_clean = 0;
-#endif
+        g_ais_srv_ctx.flash_clean = 1;
+        memcpy(g_ais_srv_ctx.recv_buf + g_ais_srv_ctx.rx_len,\
+               g_ais_srv_ctx.ota_info.data_4B, 4);
+        g_ais_srv_ctx.rx_len += 4;
+#else
+        unlock_flash_all();
         ali_dfu_image_update(g_ais_srv_ctx.ota_info.image_type,
                        g_ais_srv_ctx.ota_info.rx_size - g_ais_srv_ctx.ota_info.len_4B, 4,
                        (int *)g_ais_srv_ctx.ota_info.data_4B);
         lock_flash();
+#endif
 
         offset = 4 - g_ais_srv_ctx.ota_info.len_4B;
         p_payload += offset;
@@ -590,14 +683,18 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
     payload_len = payload_len & 0xfffc;
     if (payload_len) {
         //BT_DBG("save %d", payload_len);
-        unlock_flash_all();
 #if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
-        g_ais_srv_ctx.flash_clean = 0;
-#endif
+        g_ais_srv_ctx.flash_clean = 1;
+        memcpy(g_ais_srv_ctx.recv_buf + g_ais_srv_ctx.rx_len, p_payload, payload_len);
+        g_ais_srv_ctx.rx_len += payload_len;
+#else
+
+        unlock_flash_all();
         ali_dfu_image_update(g_ais_srv_ctx.ota_info.image_type,
                         g_ais_srv_ctx.ota_info.rx_size + offset, payload_len,
                         (int *)p_payload);
         lock_flash();
+#endif
     }
 
     if (g_ais_srv_ctx.ota_info.len_4B) {
@@ -610,13 +707,19 @@ static bool _ais_ota_data(ais_pdu_t *p_msg)
     g_ais_srv_ctx.ota_info.rx_size += p_msg->header.payload_len;
     BT_DBG("rx %d/%d", g_ais_srv_ctx.ota_info.rx_size, g_ais_srv_ctx.ota_info.image_size);
     if(p_msg->header.seq == p_msg->header.total_frame) {
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+        ali_dfu_image_update(g_ais_srv_ctx.ota_info.image_type,
+                             g_ais_srv_ctx.ota_info.rx_size - g_ais_srv_ctx.rx_len, g_ais_srv_ctx.rx_len,
+                             (int *)g_ais_srv_ctx.recv_buf);
+        g_ais_srv_ctx.rx_len = 0;
+#endif
         g_ais_srv_ctx.ota_info.except_seq = 0;
     } else {
         g_ais_srv_ctx.ota_info.except_seq = p_msg->header.seq + 1;
     }
 
     if(g_ais_srv_ctx.ota_info.rx_size == g_ais_srv_ctx.ota_info.image_size
-                        || p_msg->header.seq == p_msg->header.total_frame) {
+       || p_msg->header.seq == p_msg->header.total_frame) {
         _ais_ota_status_report();
     }
 
@@ -640,15 +743,15 @@ static bool _ais_ota_check_req(uint8_t msg_id, ais_ota_check_req_t *p_check_req)
         BT_DBG("check %d %04x %04x", p_check_resp->state, g_ais_srv_ctx.ota_info.image_crc16, crc16);
         if(p_check_resp->state && crc16 != g_ais_srv_ctx.ota_info.image_crc16){
             p_check_resp->state = 0;
-            BT_DBG("crc error");
+            BT_ERR("crc error");
         }
 
         if (p_check_resp->state) {
             g_ais_srv_ctx.state = AIS_STATE_REBOOT;
             _ais_set_ota_change();
-            BT_DBG("ota success, reboot in 3s!");
+            BT_WARN("ota success, reboot in 3s!");
         } else {
-            BT_DBG("ota failed");
+            BT_ERR("ota failed");
         }
 
         _ais_ota_encrypt(payload, 16);
@@ -666,7 +769,7 @@ static bool _ais_msg_check_header(ais_header_t *p_msg_header)
     if(p_msg_header->total_frame != 0 || p_msg_header->seq != 0
                             || p_msg_header->ver != 0
                             || p_msg_header->seq > p_msg_header->total_frame) {
-        BT_DBG("fail %s", bt_hex(p_msg_header, sizeof(ais_header_t)));
+        BT_ERR("fail %s", bt_hex(p_msg_header, sizeof(ais_header_t)));
         return false;
     }
     return true;
@@ -679,7 +782,7 @@ static void _ais_server_msg_handle(struct bt_conn *p_conn, ais_pdu_t *p_msg, uin
     BT_DBG("cmd %02x", p_msg->header.cmd);
     BT_DBG("len %d: %s", len, bt_hex(p_msg, len));
 
-    if(p_msg->header.cmd != AIS_OTA_DATA && !_ais_msg_check_header((ais_header_t *)p_msg)) {
+    if (p_msg->header.cmd != AIS_OTA_DATA && !_ais_msg_check_header((ais_header_t *)p_msg)) {
         BT_ERR("invalid msg, ignore");
     }
 
@@ -745,7 +848,9 @@ static void _ais_server_msg_handle(struct bt_conn *p_conn, ais_pdu_t *p_msg, uin
             break;
 
         default:
-            break;
+            /* recv some unsupport cmd, just return */
+            BT_WARN("unsupport cmd %x", p_msg->header.cmd);
+            return;
     }
     //BT_DBG("ret %d", ret);
     if (timer_refresh) {
@@ -788,10 +893,9 @@ static ssize_t _ais_service_write_nr(struct bt_conn *p_conn, const struct bt_gat
 
 static void _ais_service_ccc_cfg_changed(const struct bt_gatt_attr *p_attr, uint16_t value)
 {
-    if(value) {
+    if (value) {
         g_ais_conn = 1;
     }
-    BT_DBG("value %d", value);
 }
 
 /* AIS OTA Service Declaration */
@@ -881,10 +985,10 @@ int ais_service_register(void)
 
     memset(&g_ais_srv_ctx, 0, sizeof(g_ais_srv_ctx));
     k_timer_init(&g_ais_srv_ctx.timer, _ais_ota_timer_cb, NULL);
-
 #if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    k_timer_init(&g_ais_srv_ctx.timerdisconnect, _ais_dis_timer_cb, NULL);
     erase_dfu_flash();
-    g_ais_srv_ctx.flash_clean = 1;
+    g_ais_srv_ctx.flash_clean = 0;
 #endif
     return 0;
 }

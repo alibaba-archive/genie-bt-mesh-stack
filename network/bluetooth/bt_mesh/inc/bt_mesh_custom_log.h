@@ -13,14 +13,16 @@
 #define BT_INFO(f, ...) printf(f"\n", ##__VA_ARGS__)
 #endif
 
+#endif
+#if defined(USE_BT_MESH_CUSTOM_LOG) || defined(USE_BT_MESH_CUSTOM_ERR_LOG)
 #ifdef BT_WARN
 #undef BT_WARN
-#define BT_WARN(f, ...) printf(f"\n", ##__VA_ARGS__)
+#define BT_WARN(f, ...) printf("[%s]"f"\n", __func__, ##__VA_ARGS__)
 #endif
 
 #ifdef BT_ERR
 #undef BT_ERR
-#define BT_ERR(f, ...) printf(f"\n", ##__VA_ARGS__)   
+#define BT_ERR(f, ...) printf("[%s]"f"\n", __func__, ##__VA_ARGS__)
 #endif
 
 #endif

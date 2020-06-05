@@ -7,7 +7,7 @@ void board_base_init(void)
 {
     uart_dev_t uart_0;
     uart_0.port                = STDIO_UART;
-    uart_0.config.baud_rate    = 115200;
+    uart_0.config.baud_rate    = 512000;
     uart_0.config.data_width   = DATA_WIDTH_8BIT;
     uart_0.config.parity       = NO_PARITY;
     uart_0.config.stop_bits    = STOP_BITS_1;

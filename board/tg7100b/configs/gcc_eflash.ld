@@ -116,12 +116,12 @@ SECTIONS
   *hci_data.o(.text.*)
   *simple_data.o(.text.*)
   *stack_main.o(.text.*)
-  *driver_bt.o(.text.ble_stack_main .text._hci_send .text.thead_hci_sync .text.control2host_send_message .rodata.tasksArr .rodata.tasksCnt)
-  *aes_decrypt.o(.text.*)
+  *driver_bt.a:hci_driver.o(.text.ble_stack_main .text._hci_send .text.thead_hci_sync .text.control2host_send_message .rodata.tasksArr .rodata.tasksCnt)
   *bt_common.a:utils.o(.text.*)
   *bt_common.a:queue.o(.text.*)
   *bt_common.a:event_scheduler.o(.text.scheduler_loop)
-  *bt_common.a:aes_encrypt.o(.text.tc_aes128_set_encrypt_key .text.tc_aes_encrypt)
+  *bt_common.a:aes_decrypt.o(.text.*)
+  *bt_common.a:aes_encrypt.o(.text.*)
   *hci_api.o(.text.*)
   *libc_nano.a:(.text.memcpy .text.memset .text.memcmp)
   *cli.a:cli.o(.text.cli_getchar)
@@ -130,6 +130,7 @@ SECTIONS
   *genie_mesh.o(.text.calc_cur_state .text.elem_state_init)
   *genie_event.o(.text.genie_event)
   *example_lpm.o(.text.pm_prepare_sleep_action .text.pm_after_sleep_action)
+  *genie_app.a:genie_flash.o(.text._genie_flash_search)
   *(.retention_mem_area0 retention_mem_area0)
  } > REGION_RETENTION1
  .text : {

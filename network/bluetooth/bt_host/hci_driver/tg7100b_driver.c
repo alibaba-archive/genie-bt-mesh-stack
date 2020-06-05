@@ -31,6 +31,7 @@
 #include <hci_ecc.h>
 #include <aos/kernel.h>
 #include <misc/byteorder.h>
+struct hci_debug_counter_t g_hci_debug_counter;
 
 static struct k_thread rx_thread_data;
 #define CONFIG_BT_RX_STACK_SIZE 1024
@@ -156,13 +157,17 @@ static struct {
     NULL,
 };
 
-#define HCI_DATA_SIZE 256
-#define HCI_DATA_NUM 8
+#define HCI_DATA_SIZE    (CONFIG_BT_RX_BUF_LEN+5+2)
+#define HCI_DATA_NUM     16
+
+#define HCI_DATA_23_SIZE (32)
+#define HCI_DATA_23_NUM  (36)
 
 #define HCI_ADV_DATA_SIZE 46
-#define HCI_ADV_NUM 15
+#define HCI_ADV_NUM       15
 
 SIMPLE_POOL_INIT(hci_data_pool, HCI_DATA_NUM, HCI_DATA_SIZE);
+SIMPLE_POOL_INIT(hci_23_data_pool, HCI_DATA_23_NUM, HCI_DATA_23_SIZE);
 SIMPLE_POOL_INIT(hci_adv_data_pool, HCI_ADV_NUM, HCI_ADV_DATA_SIZE);
 
 static int h4_send(struct net_buf *buf)
@@ -215,17 +220,17 @@ static int h4_send(struct net_buf *buf)
     return ret;
 }
 
-struct kfifo {
-    struct k_queue _queue;
-};
+static ksem_t rx_sem;
+static sys_slist_t rx_adv_fifo;
+static sys_slist_t rx_fifo;
 
-static struct kfifo  rx_fifo;
 void hci_event_recv(simple_data_t *simple_data);
 void hci_acl_recv(simple_data_t *simple_data);
 
 static void rx_thread(void *p1)
 {
-    simple_data_t *simple_data;
+    simple_data_t *simple_data = NULL;
+    size_t irq_flags;
 
     ARG_UNUSED(p1);
 
@@ -233,7 +238,16 @@ static void rx_thread(void *p1)
 
     while (1) {
 
-        simple_data = k_fifo_get(&rx_fifo, K_FOREVER);
+        krhino_sem_take(&rx_sem, RHINO_WAIT_FOREVER);
+
+        irq_flags = cpu_intrpt_save();
+        simple_data = (simple_data_t *) sys_slist_get(&rx_fifo);
+
+        if (simple_data == NULL) {
+            simple_data = (simple_data_t *) sys_slist_get(&rx_adv_fifo);
+        }
+
+        cpu_intrpt_restore(irq_flags);
 
         while (simple_data) {
             if (simple_data->data[0] == H4_EVT) {
@@ -245,7 +259,14 @@ static void rx_thread(void *p1)
                 continue;
             }
 
-            simple_data = k_fifo_get(&rx_fifo, K_NO_WAIT);
+            irq_flags = cpu_intrpt_save();
+            simple_data = (simple_data_t *) sys_slist_get(&rx_fifo);
+
+            if (simple_data == NULL) {
+                simple_data = (simple_data_t *) sys_slist_get(&rx_adv_fifo);
+            }
+
+            cpu_intrpt_restore(irq_flags);
         };
 
         //krhino_task_yield();
@@ -368,7 +389,7 @@ void hci_acl_recv(simple_data_t *simple_data)
     buf = bt_buf_get_rx(BT_BUF_ACL_IN, 0);
 
     if (!buf) {
-        //g_hci_debug_counter.hci_in_is_null_count++;
+        g_hci_debug_counter.hci_in_is_null_count++;
         goto data_free;
     }
 
@@ -376,7 +397,7 @@ void hci_acl_recv(simple_data_t *simple_data)
 
     net_buf_add_mem(buf, (uint8_t *)(simple_data->data) + 1, acl_len + 4);
     simple_data_free(simple_data);
-    //g_hci_debug_counter.acl_in_count++;
+    g_hci_debug_counter.acl_in_count++;
 
     bt_recv(buf);
     return;
@@ -389,12 +410,16 @@ data_free:
 int hci_recv(void *data, int32_t len)
 {
     simple_data_t *hci_data = NULL;
+    uint8_t is_adv = 0;
 
     if (data == NULL || len == 0) {
         return -1;
     }
 
-    if (is_adv_report_event(data, len)) {
+    is_adv = is_adv_report_event(data, len);
+
+    if (is_adv) {
+
         if (len > hci_adv_data_pool.data_size) {
             return -1;
         }
@@ -405,20 +430,33 @@ int hci_recv(void *data, int32_t len)
             return 0;
         }
     } else {
-        if (len > hci_data_pool.data_size) {
+        if (len <= hci_23_data_pool.data_size) {
+            hci_data = simple_data_alloc(&hci_23_data_pool);
+        } else if (len <= hci_data_pool.data_size) {
+            hci_data = simple_data_alloc(&hci_data_pool);
+        } else {
             return -1;
         }
-
-        hci_data = simple_data_alloc(&hci_data_pool);
     }
 
     if (hci_data == NULL) {
+        g_hci_debug_counter.hci_in_is_null_count++;
         return -1;
     }
 
     memcpy(hci_data->data, data, len);
     hci_data->data_len = len;
-    k_fifo_put(&rx_fifo, &hci_data->node);
+    size_t irq_flags;
+    irq_flags = cpu_intrpt_save();
+
+    if (is_adv) {
+        sys_slist_append(&rx_adv_fifo, &hci_data->node);
+    } else {
+        sys_slist_append(&rx_fifo, &hci_data->node);
+    }
+
+    cpu_intrpt_restore(irq_flags);
+    krhino_sem_give(&rx_sem);
 
     return 0;
 }
@@ -431,9 +469,13 @@ static int h4_open(void)
         bt_hci_ecc_init();
     }
 
-    k_fifo_init(&rx_fifo);
+    krhino_sem_create(&rx_sem, "rx", 0);
+    sys_slist_init(&rx_fifo);
+    sys_slist_init(&rx_adv_fifo);
+
     simple_data_init(&hci_data_pool);
     simple_data_init(&hci_adv_data_pool);
+    simple_data_init(&hci_23_data_pool);
 
     ret =  k_thread_create(&rx_thread_data, rx_thread_stack, sizeof(rx_thread_stack), rx_thread,
                            NULL, NULL, NULL, CONFIG_BT_RX_PRIO, 0, K_NO_WAIT);

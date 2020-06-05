@@ -1,3 +1,9 @@
+v1.1.4
+1. Fix MESH OTA and GATT OTA bugs
+2. Add Flash protection when power down
+3. Fix IOS APP provision bug
+4. Add ADC example  in tg7100b
+
 v1.1.2
 1.optimize code size in tg7100b
 2.support dut test in tg7100b

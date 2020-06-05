@@ -118,7 +118,7 @@ int32_t hal_adc_value_get(adc_dev_t *adc, void *output, uint32_t timeout)
         printf("adc stop fail\n");
         return -1;
     }
-    total = hal_adc_value_cal(ch_array[0], recv_data, BATTERY_ADC_CON_DATA_NUM, false, false);
+    total = phy_adc_value_cal(ch_array[0], recv_data, BATTERY_ADC_CON_DATA_NUM, false, false);
 	memcpy(output, &total, sizeof(total));
 	return 0;
 }
