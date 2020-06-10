@@ -283,7 +283,7 @@ int32_t hal_uart_recv_II(uart_dev_t *uart, void *data, uint32_t expect_size, uin
             break;
         }
 
-        aos_sem_wait(&usart_dev->ksem_read, 200);
+        aos_sem_wait(&usart_dev->ksem_read, timeout - used_time);
     }
 
     usart_dev->stat_rxmit = STAT_XMIT_IDLE;

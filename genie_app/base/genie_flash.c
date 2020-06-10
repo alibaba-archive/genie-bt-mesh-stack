@@ -318,7 +318,9 @@ E_GENIE_FLASH_ERRCODE genie_flash_check_recycle(void)
         CELL_PREPEAR_RELIABLE(cell, 0);
     } else if (part_flag == GENIE_FLASH_FLAG_INITED_UD) {
         CELL_PREPEAR_USERDATA(cell, 0);
-    } else if (part_flag == GENIE_FLASH_FLAG_INITED_SEQ) {
+    }
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
+    else if (part_flag == GENIE_FLASH_FLAG_INITED_SEQ) {
         uint32_t data =0;
         uint32_t seq_write = GENIE_FLASH_SIZE_INITED_FLAG;
 
@@ -335,7 +337,9 @@ E_GENIE_FLASH_ERRCODE genie_flash_check_recycle(void)
         }
 
         return _genie_flash_copy_seq(&recycle, &cell, data);
-    } else {
+    }
+#endif
+    else {
         /* part_flag == GENIE_FLASH_FLAG_INITED_INVALID, means data in ud/sys have not been erased, wait for recycle,
            part_flag == GENIE_FLASH_FLAG_INITED_ORIGIN, means recycle have not data yet,
            part_flag == GENIE_FLASH_FLAG_INITED_BASE, means recycle have been done,
@@ -409,30 +413,35 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_search(genie_flash_cell_t *p_cell)
 
     BT_DBG("search index(0x%04X)", p_cell->index);
 
-    static uint8_t read_buf[4096] = {0};
-    uint8_t *pread_buf = read_buf;
+    static uint32_t read_buf[4096 / 4] = {0};
     uint32_t offset = 0;
-    hal_flash_read(p_cell->pno, &offset, read_buf, sizeof(read_buf));
+    flash_header_t *flash_head = NULL;
 
+    if (p_cell->offset >= p_cell->end) {
+        return GENIE_FLASH_SEARCH_NONE;
+    }
+
+    if (hal_flash_read(p_cell->pno, &offset, read_buf, sizeof(read_buf))) {
+        return GENIE_FLASH_SEARCH_NONE;
+    }
+
+    flash_head = (flash_header_t *)((uint8_t *)read_buf + p_cell->offset);
     do {
-
-        if (p_cell->offset < p_cell->end) {
-
-            p_cell->header = *(flash_header_t *)(pread_buf + p_cell->offset);
-
-            if (p_cell->header.flag == GENIE_FLASH_FLAG_UNSED) {
-                return GENIE_FLASH_SEARCH_NONE;
-            }
+        if (flash_head->flag == GENIE_FLASH_FLAG_UNSED) {
+            return GENIE_FLASH_SEARCH_NONE;
         }
 
-        if (p_cell->header.flag == GENIE_FLASH_FLAG_ACTIVE && p_cell->header.index == p_cell->index) {
+        if (flash_head->flag == GENIE_FLASH_FLAG_ACTIVE && flash_head->index == p_cell->index) {
             BT_DBG("bingo");
+            p_cell->header = *flash_head; // copy header
             return GENIE_FLASH_SUCCESS;
         } else {
             /* found next cell */
-            p_cell->offset += sizeof(flash_header_t) + p_cell->header.length + p_cell->header.align;
+            uint32_t len = sizeof(flash_header_t) + flash_head->length + flash_head->align;
+            p_cell->offset += len;
+            flash_head = (flash_header_t *)((uint8_t *)flash_head + len);
         }
-    } while (ret == GENIE_FLASH_SUCCESS);
+    } while (p_cell->offset < p_cell->end);
 
     BT_DBG("can not find index(0x%04X), ret(%d)", p_cell->index, ret);
     return ret;
@@ -767,10 +776,14 @@ static E_GENIE_FLASH_ERRCODE genie_flash_init_partition(hal_partition_t in_parti
         g_info_recycle.free_offset = GENIE_FLASH_START_RECYCLE;
         break;
     case GENIE_FLASH_PARTITION_SEQ:
+#if defined(BOARD_TG7100B) || defined(BOARD_CH6121EVB)
         flash_flag = GENIE_FLASH_FLAG_INITED_SEQ;
         g_flash_seq_ctl.write_offset = GENIE_FLASH_SIZE_INITED_FLAG;
         g_flash_seq_ctl.read_offset = 0;
         break;
+#else
+        return hal_flash_erase(in_partition, 0, part_size);
+#endif
     default:
         return GENIE_FLASH_EARSE_FAIL;
     }
@@ -1069,7 +1082,7 @@ static E_GENIE_FLASH_ERRCODE _genie_flash_read_seqcount(uint16_t *p_count)
     uint8_t i, j;
 
     *p_count = 0;
-    while(offset < GENIE_FLASH_START_SEQ_COUNT + GENIE_FLASH_SIZE_SEQ_COUNT) {
+    while(offset < GENIE_FLASH_START_SEQ_COUNT + GENIE_FLASH_SIZE_SEQ) {
         ret = hal_flash_read(GENIE_FLASH_PARTITION_SEQ, &offset, data, SEQ_COUNT_BUFFER_SIZE);
         RETURN_WHEN_ERR(ret, GENIE_FLASH_READ_FAIL);
         for(i = 0; i < SEQ_COUNT_BUFFER_SIZE; i++) {
@@ -1185,7 +1198,7 @@ E_GENIE_FLASH_ERRCODE genie_flash_write_seq(uint32_t *p_seq)
             BT_ERR("base(%d) > seq(%d)", base, seq);
             return GENIE_FLASH_WRITE_FAIL;
         } else {
-            if(seq-base <= (GENIE_FLASH_SIZE_SEQ_COUNT<<3)) {
+            if(seq-base <= (GENIE_FLASH_SIZE_SEQ<<3)) {
                 //write new count
                 ret = _genie_flash_read_seqcount(&count);
                 RETURN_WHEN_ERR(ret, GENIE_FLASH_READ_FAIL);

@@ -140,12 +140,6 @@ int32_t hal_gpio_enable_irq(gpio_dev_t *gpio, gpio_irq_trigger_t trigger,
             csi_gpio_pin_set_irq(gpio_handlers[gpio->port], GPIO_IRQ_MODE_FALLING_EDGE, true);
             break;
 
-        case IRQ_TRIGGER_BOTH_EDGES:
-            csi_gpio_pin_config_mode(gpio_handlers[gpio->port], GPIO_MODE_PULLNONE);
-            csi_gpio_pin_config_direction(gpio_handlers[gpio->port], GPIO_DIRECTION_INPUT);
-            csi_gpio_pin_set_irq(gpio_handlers[gpio->port], GPIO_IRQ_MODE_DOUBLE_EDGE, true);
-            break;
-
         default:
             return -1;
     }
