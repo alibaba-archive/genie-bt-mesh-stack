@@ -1,4 +1,4 @@
-NAME := example_i2c
+NAME := example_lpm
 
 
 $(NAME)_COMPONENTS  += genie_app bluetooth.bt_host bluetooth.bt_mesh yloop cli

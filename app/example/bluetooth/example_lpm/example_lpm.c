@@ -1,5 +1,3 @@
-/* helloworld.c - helloworld */
-
 /*
  * Copyright (C) 2018-2020 Alibaba Group Holding Limited
  */
@@ -10,27 +8,24 @@
 #include <aos/kernel.h>
 #include <pwrmgr.h>
 #include <hal/soc/gpio.h>
-#include <hal/soc/i2c.h>
 #include <soc.h>
 
-#define CK_IIC_SLAVE_ADDR          0x50
-#define EEPROM_PAGE_SIZE          0x20
-#define AOS_SLEEP 0XFF
+#define WAKE_UP_GPIO  P15
 
-static i2c_dev_t i2c_dev = {
-    0,
-    {I2C_MEM_ADDR_SIZE_8BIT, I2C_BUS_SPEED_100K, I2C_MODE_MASTER, CK_IIC_SLAVE_ADDR},
-    NULL
-};
+aos_timer_t g_check_timer;
+aos_sem_t   g_io_sem;
 
+void io_irq_check()
+{
+  printf("wake i/o\r\n");
 
+}
 int pm_prepare_sleep_action()
 {
     hal_ret_sram_enable(RET_SRAM0 | RET_SRAM1 | RET_SRAM2 | RET_SRAM3 | RET_SRAM4);
     csi_gpio_prepare_sleep_action();
     csi_pinmux_prepare_sleep_action();
     csi_usart_prepare_sleep_action(0);
-    csi_iic_prepare_sleep_action(0);
     return 0;
 }
 
@@ -39,77 +34,54 @@ int pm_after_sleep_action()
     csi_gpio_wakeup_sleep_action();
     csi_pinmux_wakeup_sleep_action();
     csi_usart_wakeup_sleep_action(0);
-    csi_iic_wakeup_sleep_action(0);
+    if(!phy_gpio_read(WAKE_UP_GPIO))
+    {
+      aos_sem_signal(&g_io_sem);
+    }
     return 0;
 }
 
+gpio_irq_handler_t io_irq_handler(void *arg)
+{
+  io_irq_check();
+}
+
+void wakeup_io_init(void)
+{
+    uint8_t ret;
+    gpio_dev_t io;
+    io.port = WAKE_UP_GPIO;
+    io.config = INPUT_PULL_UP;
+    hal_gpio_init(&io);
+    hal_gpio_enable_irq(&io, IRQ_TRIGGER_FALLING_EDGE, io_irq_handler,&io);
+    phy_gpio_wakeup_set(WAKE_UP_GPIO, NEGEDGE);
+}
+
+static void timer_irq_handler(void *p_timer,void * args)
+{
+  printf("wake t\r\n");
+  aos_timer_start(&g_check_timer);
+}
+
+void wakeup_timer_init(void)
+{
+    aos_timer_new(&g_check_timer,timer_irq_handler,NULL,2000,0);
+    aos_timer_stop(&g_check_timer);
+}
 
 int application_start(int argc, char **argv)
 {
     int32_t ret;
     printk("BUILD TIME:%s\n", __DATE__","__TIME__);
 
-    uint8_t write_data[EEPROM_PAGE_SIZE + 2] = {0x0, EEPROM_PAGE_SIZE, 0};
-    uint8_t read_data[EEPROM_PAGE_SIZE + 2] = {0x0, EEPROM_PAGE_SIZE, 0};
-
     pm_init();
-
-    uint8_t i = 0;
-
-    for (i = 2; i < sizeof(write_data); i++) {
-        write_data[i] = i - 2;
+    wakeup_io_init();
+    wakeup_timer_init();
+    aos_timer_start(&g_check_timer);
+    aos_sem_new(&g_io_sem, 0);
+    while(1){
+      aos_sem_wait(&g_io_sem, AOS_WAIT_FOREVER);
+      io_irq_check();
     }
-
-    ret = hal_i2c_init(&i2c_dev);
-
-    if (ret != 0) {
-        printk("hal_i2c_init error\n");
-        return -1;
-    }
-
-    while (1) {
-        aos_msleep(10000);
-
-        disableSleepInPM(AOS_SLEEP);
-        ret = hal_i2c_master_send(&i2c_dev, CK_IIC_SLAVE_ADDR, write_data, sizeof(write_data), 3000);
-
-        if (ret < 0) {
-            printf("hal_i2c_master_send1 error\n");
-            continue;
-        }
-
-        mdelay(5);
-        ret = hal_i2c_master_send(&i2c_dev, CK_IIC_SLAVE_ADDR, read_data, 2, 3500);
-
-        if (ret < 0) {
-            printf("hal_i2c_master_send2 error\n");
-        }
-
-        mdelay(5);
-        ret = hal_i2c_master_recv(&i2c_dev, CK_IIC_SLAVE_ADDR, read_data + 2, sizeof(read_data) - 2, 3000);
-
-        if (ret < 0) {
-            printf("hal_i2c_master_recv error\n");
-        }
-
-        printf("write_data,read_data:\n");
-
-        for (i = 2; i < EEPROM_PAGE_SIZE + 2; i++) {
-            printf("%x,%x \t", write_data[i], read_data[i]);
-
-            if (((i + 3) % 4) == 0) {
-                printf("\n");
-            }
-
-            if (write_data[i] != read_data[i]) {
-                printf("\ntest at24c64 write and read failed\n");
-            }
-        }
-
-        enableSleepInPM(AOS_SLEEP);
-
-    }
-
     return 0;
 }
-
